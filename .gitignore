@@ -29,3 +29,5 @@ Thumbs.db
 # Build
 /bin/
 /dist/
+
+reports/demos/
