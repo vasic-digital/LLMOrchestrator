@@ -1,0 +1,8 @@
+Commit: 4d25e4828306070dc56338b5b6b98b622b1defde
+Branch: HEAD
+4d25e48 chore: bump Go version to 1.25
+3bc6011 Add GitHub Sponsors button
+0065e2a security: Add mandatory NO SUDO/ROOT execution constraint
+7e5d0a9 docs: add architecture docs and README
+3b7cab9 Add OpenCode headless adapter and multi-pool agent support
+
