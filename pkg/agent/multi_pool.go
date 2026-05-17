@@ -22,25 +22,45 @@ type AgentSelector interface {
 	Select(pools map[string]AgentPool, req AgentRequirements) string
 }
 
-// NewMultiProviderPool creates a multi-provider pool
+// NewMultiProviderPool creates a multi-provider pool.
+//
+// Every provider-specific factory (NewOpenCodePool / NewClaudeCodePool /
+// NewGeminiPool / NewJuniePool / NewQwenCodePool) currently returns
+// ErrProviderPoolNotImplemented per round-28 §11.4 audit (CONTRACT-bluff
+// removal). Until each factory is replaced with a real provider-specific
+// implementation, NewMultiProviderPool propagates that sentinel error
+// rather than silently constructing a pool whose Acquire() would return
+// nil agents that panic on first use.
+//
+// Callers MAY still construct a MultiProviderPool directly with externally
+// provided AgentPool implementations (e.g., installed via dependency
+// injection in tests) — see the test helpers in pkg/agent/*_test.go.
 func NewMultiProviderPool(configs map[string]*PoolConfig) (*MultiProviderPool, error) {
 	pools := make(map[string]AgentPool)
 
 	for provider, cfg := range configs {
+		var (
+			p   AgentPool
+			err error
+		)
 		switch provider {
 		case "opencode":
-			pools[provider] = NewOpenCodePool(cfg)
+			p, err = NewOpenCodePool(cfg)
 		case "claude-code":
-			pools[provider] = NewClaudeCodePool(cfg)
+			p, err = NewClaudeCodePool(cfg)
 		case "gemini":
-			pools[provider] = NewGeminiPool(cfg)
+			p, err = NewGeminiPool(cfg)
 		case "junie":
-			pools[provider] = NewJuniePool(cfg)
+			p, err = NewJuniePool(cfg)
 		case "qwen-code":
-			pools[provider] = NewQwenCodePool(cfg)
+			p, err = NewQwenCodePool(cfg)
 		default:
 			return nil, fmt.Errorf("unknown provider: %s", provider)
 		}
+		if err != nil {
+			return nil, fmt.Errorf("provider %q: %w", provider, err)
+		}
+		pools[provider] = p
 	}
 
 	return &MultiProviderPool{
@@ -228,94 +248,62 @@ type PoolConfig struct {
 	APIKey     string
 }
 
-// Mock pool implementations for different providers
-func NewOpenCodePool(cfg *PoolConfig) AgentPool {
-	// Implementation would create OpenCode-specific pool
-	return NewMockPool("opencode", cfg.Size)
+// ErrProviderPoolNotImplemented is returned by every provider-specific
+// pool factory (NewOpenCodePool / NewClaudeCodePool / NewGeminiPool /
+// NewJuniePool / NewQwenCodePool) until each one is replaced with a real
+// provider-specific implementation that spawns and manages live CLI
+// agents.
+//
+// Round-28 §11.4 audit (HelixCode close-out, 2026-05-17): the previous
+// factory bodies returned a MockPool seeded with `nil` agent slots
+// (`agents[i] = nil // Placeholder`). MultiProviderPool.Acquire() would
+// happily return one of those nil agents to a caller, which then panicked
+// on the first method call. The test suite passed because no test
+// exercised the round-trip — a CRITICAL CONTRACT-bluff at the
+// multi-provider-pool layer.
+//
+// Fix: every factory now surfaces this sentinel error so callers (and
+// MultiProviderPool itself) FAIL LOUDLY when a provider-specific
+// implementation is missing, instead of silently returning a pool of
+// nil-agent panic-traps. MockPool has been moved to *_test.go per
+// CONST-050(A) (no fakes outside unit tests). Tests that require a
+// deterministic stand-in install one via dependency injection in
+// the test file.
+//
+// Constitutional anchors: CONST-035 (anti-bluff), CONST-050(A)
+// (no-fakes-beyond-unit-tests), Article XI §11.9 (forensic anchor).
+var ErrProviderPoolNotImplemented = fmt.Errorf("llmorchestrator: provider-specific pool factory has not been implemented — NewOpenCodePool/NewClaudeCodePool/NewGeminiPool/NewJuniePool/NewQwenCodePool currently return a sentinel error to avoid the previous MockPool-with-nil-agents CONTRACT-bluff (every Acquire would have returned a nil agent that panicked on use); §11.4 PASS-bluff removed")
+
+// NewOpenCodePool returns ErrProviderPoolNotImplemented until a real
+// OpenCode-specific pool (spawning + supervising live `opencode`
+// CLI agents) is wired in. See ErrProviderPoolNotImplemented for the
+// round-28 §11.4 forensic anchor.
+func NewOpenCodePool(_ *PoolConfig) (AgentPool, error) {
+	return nil, fmt.Errorf("opencode: %w", ErrProviderPoolNotImplemented)
 }
 
-func NewClaudeCodePool(cfg *PoolConfig) AgentPool {
-	return NewMockPool("claude-code", cfg.Size)
+// NewClaudeCodePool returns ErrProviderPoolNotImplemented until a real
+// Claude-Code-specific pool is wired in.
+func NewClaudeCodePool(_ *PoolConfig) (AgentPool, error) {
+	return nil, fmt.Errorf("claude-code: %w", ErrProviderPoolNotImplemented)
 }
 
-func NewGeminiPool(cfg *PoolConfig) AgentPool {
-	return NewMockPool("gemini", cfg.Size)
+// NewGeminiPool returns ErrProviderPoolNotImplemented until a real
+// Gemini-specific pool is wired in.
+func NewGeminiPool(_ *PoolConfig) (AgentPool, error) {
+	return nil, fmt.Errorf("gemini: %w", ErrProviderPoolNotImplemented)
 }
 
-func NewJuniePool(cfg *PoolConfig) AgentPool {
-	return NewMockPool("junie", cfg.Size)
+// NewJuniePool returns ErrProviderPoolNotImplemented until a real
+// Junie-specific pool is wired in.
+func NewJuniePool(_ *PoolConfig) (AgentPool, error) {
+	return nil, fmt.Errorf("junie: %w", ErrProviderPoolNotImplemented)
 }
 
-func NewQwenCodePool(cfg *PoolConfig) AgentPool {
-	return NewMockPool("qwen-code", cfg.Size)
-}
-
-// MockPool is a placeholder implementation
-type MockPool struct {
-	name      string
-	agents    []Agent
-	available []Agent
-	mu        sync.Mutex
-}
-
-func NewMockPool(name string, size int) *MockPool {
-	agents := make([]Agent, size)
-	available := make([]Agent, size)
-
-	for i := 0; i < size; i++ {
-		// Would create actual agent instances
-		agents[i] = nil // Placeholder
-		available[i] = agents[i]
-	}
-
-	return &MockPool{
-		name:      name,
-		agents:    agents,
-		available: available,
-	}
-}
-
-func (p *MockPool) Register(agent Agent) error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.agents = append(p.agents, agent)
-	p.available = append(p.available, agent)
-	return nil
-}
-
-func (p *MockPool) Acquire(ctx context.Context, req AgentRequirements) (Agent, error) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	if len(p.available) == 0 {
-		return nil, ErrNoAgentsAvailable
-	}
-
-	agent := p.available[0]
-	p.available = p.available[1:]
-	return agent, nil
-}
-
-func (p *MockPool) Release(agent Agent) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.available = append(p.available, agent)
-}
-
-func (p *MockPool) Available() []Agent {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	result := make([]Agent, len(p.available))
-	copy(result, p.available)
-	return result
-}
-
-func (p *MockPool) HealthCheck(ctx context.Context) []HealthStatus {
-	return []HealthStatus{}
-}
-
-func (p *MockPool) Shutdown(ctx context.Context) error {
-	return nil
+// NewQwenCodePool returns ErrProviderPoolNotImplemented until a real
+// Qwen-Code-specific pool is wired in.
+func NewQwenCodePool(_ *PoolConfig) (AgentPool, error) {
+	return nil, fmt.Errorf("qwen-code: %w", ErrProviderPoolNotImplemented)
 }
 
 var (
