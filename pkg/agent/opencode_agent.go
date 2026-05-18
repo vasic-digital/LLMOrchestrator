@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"digital.vasic.llmorchestrator/pkg/i18n"
 )
 
 // Round-64 §11.4 forensic anchor — real OpenCode CLI client wiring.
@@ -374,6 +376,25 @@ type invocationError struct {
 
 func (e *invocationError) Error() string {
 	if e.stderr != "" {
+		// CONST-046 round-115: user-facing error message routed through i18n.
+		const id = "llmorchestrator_agent_opencode_invocation_failed_with_stderr"
+		msg, terr := i18n.Pkg().T(
+			context.Background(),
+			id,
+			map[string]any{
+				"sentinel": ErrOpenCodeInvocationFailed.Error(),
+				"op":       e.op,
+				"exitCode": e.exitCode,
+				"stderr":   e.stderr,
+			},
+		)
+		// Fall through to fmt.Sprintf when the active translator is the
+		// NoopTranslator (returns the ID verbatim) so the wire-evidence
+		// path keeps the captured stderr visible to callers regardless
+		// of whether a consumer has installed a real translator yet.
+		if terr == nil && msg != "" && msg != id {
+			return msg
+		}
 		return fmt.Sprintf("%s: %s exit %d: %s", ErrOpenCodeInvocationFailed.Error(), e.op, e.exitCode, e.stderr)
 	}
 	if e.exitCode != 0 {

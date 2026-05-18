@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"digital.vasic.llmorchestrator/pkg/i18n"
 )
 
 // Round-71 §11.4 forensic anchor — real Junie CLI client wiring.
@@ -494,6 +496,21 @@ type junieInvocationError struct {
 
 func (e *junieInvocationError) Error() string {
 	if e.stderr != "" {
+		// CONST-046 round-115: user-facing error message routed through i18n.
+		const id = "llmorchestrator_agent_junie_invocation_failed_with_stderr"
+		msg, terr := i18n.Pkg().T(
+			context.Background(),
+			id,
+			map[string]any{
+				"sentinel": ErrJunieInvocationFailed.Error(),
+				"op":       e.op,
+				"exitCode": e.exitCode,
+				"stderr":   e.stderr,
+			},
+		)
+		if terr == nil && msg != "" && msg != id {
+			return msg
+		}
 		return fmt.Sprintf("%s: %s exit %d: %s", ErrJunieInvocationFailed.Error(), e.op, e.exitCode, e.stderr)
 	}
 	if e.exitCode != 0 {

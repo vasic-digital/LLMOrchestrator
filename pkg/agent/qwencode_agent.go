@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"digital.vasic.llmorchestrator/pkg/i18n"
 )
 
 // Round-76 §11.4 forensic anchor — real QwenCode CLI client wiring.
@@ -523,6 +525,21 @@ type qwenCodeInvocationError struct {
 
 func (e *qwenCodeInvocationError) Error() string {
 	if e.stderr != "" {
+		// CONST-046 round-115: user-facing error message routed through i18n.
+		const id = "llmorchestrator_agent_qwencode_invocation_failed_with_stderr"
+		msg, terr := i18n.Pkg().T(
+			context.Background(),
+			id,
+			map[string]any{
+				"sentinel": ErrQwenCodeInvocationFailed.Error(),
+				"op":       e.op,
+				"exitCode": e.exitCode,
+				"stderr":   e.stderr,
+			},
+		)
+		if terr == nil && msg != "" && msg != id {
+			return msg
+		}
 		return fmt.Sprintf("%s: %s exit %d: %s", ErrQwenCodeInvocationFailed.Error(), e.op, e.exitCode, e.stderr)
 	}
 	if e.exitCode != 0 {

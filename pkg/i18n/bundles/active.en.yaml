@@ -1,0 +1,32 @@
+# CONST-046 active bundle — English source-of-truth message strings
+# for digital.vasic.llmorchestrator user-facing call sites.
+#
+# Each entry's "other" value is the EXACT original English literal
+# that previously lived as a hardcoded format string inside the
+# referenced call site. Consumers of the LLMOrchestrator submodule
+# load this bundle (or a locale-specific override) into their
+# Translator implementation; the package-level translator (set via
+# i18n.SetPkgTranslator) then renders these IDs at runtime with the
+# templateData supplied by the call site.
+#
+# Format-string convention: arguments are referenced by name via
+# {{.fieldname}} (Go text/template syntax). Original positional
+# %s / %d order is preserved in the bundle-key naming as documentation.
+#
+# Round 115 — first 5 entries (1 per builder agent invocationError.Error()).
+# Remaining ~12 hits queued for later rounds.
+
+llmorchestrator_agent_opencode_invocation_failed_with_stderr:
+  other: "{{.sentinel}}: {{.op}} exit {{.exitCode}}: {{.stderr}}"
+
+llmorchestrator_agent_claudecode_invocation_failed_with_stderr:
+  other: "{{.sentinel}}: {{.op}} exit {{.exitCode}}: {{.stderr}}"
+
+llmorchestrator_agent_gemini_invocation_failed_with_stderr:
+  other: "{{.sentinel}}: {{.op}} exit {{.exitCode}}: {{.stderr}}"
+
+llmorchestrator_agent_junie_invocation_failed_with_stderr:
+  other: "{{.sentinel}}: {{.op}} exit {{.exitCode}}: {{.stderr}}"
+
+llmorchestrator_agent_qwencode_invocation_failed_with_stderr:
+  other: "{{.sentinel}}: {{.op}} exit {{.exitCode}}: {{.stderr}}"
