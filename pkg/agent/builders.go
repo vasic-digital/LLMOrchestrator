@@ -63,14 +63,31 @@ var ErrOpenCodeClientNotWired = fmt.Errorf(
 		"wired the real os/exec bridge to `opencode run`; this sentinel " +
 		"now narrows to the nil-cfg backstop path (caller programmer error)")
 
-// ErrClaudeCodeClientNotWired is returned by the Claude-Code ClientBuilder
-// until round-61+ wires the Claude Code CLI binary integration
-// (anticipated transport: os/exec spawning `claude` CLI with the
-// Anthropic Messages API session protocol).
+// ErrClaudeCodeClientNotWired was the round-60 §11.4 sentinel that
+// signalled "Claude Code CLI binary integration not implemented in this
+// repository". Round-66 §11.4 lands the real os/exec-based bridge to
+// `claude --print` (see claudecode_agent.go) — so this sentinel's
+// meaning has been NARROWED, not removed.
+//
+// Round-60 semantics: "no implementation exists; the builder is a stub".
+// Round-66 semantics: "implementation exists, but this code path took
+// the legacy stub branch — caller invoked ClaudeCodeClientBuilder with
+// nil PoolConfig (programmer error: factories should never propagate a
+// nil cfg into the builder)".
+//
+// In the normal end-to-end path (NewClaudeCodePool with non-nil
+// PoolConfig → ClaudeCodeClientBuilder → NewClaudeCodeAgent), the
+// builder returns a real *ClaudeCodeAgent and this sentinel never
+// fires. Tests that explicitly pass a nil PoolConfig into
+// ClaudeCodeClientBuilder continue to receive this sentinel for
+// backward compatibility.
+//
+// See ErrClaudeCodeClientNotConfigured (claudecode_agent.go) for the
+// distinct "config present but zero-value" case landed in round 66.
 var ErrClaudeCodeClientNotWired = fmt.Errorf(
-	"claude-code agent: client SDK integration not wired in this round — " +
-		"pool's Acquire will fail loudly until round-61+ wires the " +
-		"Claude Code CLI binary integration via os/exec spawning `claude`")
+	"claude-code agent: ClientBuilder received nil PoolConfig — round-66 " +
+		"wired the real os/exec bridge to `claude --print`; this sentinel " +
+		"now narrows to the nil-cfg backstop path (caller programmer error)")
 
 // ErrGeminiClientNotWired is returned by the Gemini ClientBuilder
 // until round-61+ wires the Gemini provider integration
@@ -166,11 +183,73 @@ func OpenCodeClientBuilderFromConfig(cfg OpenCodeBuilderConfig) ClientBuilder {
 	}
 }
 
-// ClaudeCodeClientBuilder returns a ClientBuilder that surfaces
-// ErrClaudeCodeClientNotWired.
-func ClaudeCodeClientBuilder(_ *PoolConfig) ClientBuilder {
+// ClaudeCodeClientBuilder returns a ClientBuilder that constructs a real
+// *ClaudeCodeAgent on each invocation (round-66 §11.4 wiring).
+//
+// The supplied PoolConfig contributes the BinaryPath (→ cfg.Binary)
+// and the runtime env (sourced from the caller via cfg's lifecycle —
+// the legacy PoolConfig struct does not yet carry an explicit Env
+// field, so ClaudeCodeAgent inherits the parent process environment
+// through Go's default exec behaviour when cfg.Env stays empty here).
+//
+// Backstop paths:
+//   - nil PoolConfig → ErrClaudeCodeClientNotWired (round-60 sentinel,
+//     narrowed to "programmer error: factory propagated nil cfg").
+//   - cfg present but the would-be ClaudeCodeBuilderConfig is
+//     zero-value (no BinaryPath, no extra args) → caller still gets
+//     a working agent IF `claude` is on $PATH
+//     (DefaultClaudeCodeBinary fallback). The distinct
+//     ErrClaudeCodeClientNotConfigured sentinel fires only for the
+//     explicit ClaudeCodeClientBuilderFromConfig() entrypoint.
+//   - `claude` binary missing from $PATH → ErrClaudeCodeBinaryNotFound
+//     surfaces from NewClaudeCodeAgent, gets wrapped by
+//     SimpleAgentPool.Acquire, and reaches the caller errors.Is-
+//     checkable.
+//
+// Constitutional anchors: CONST-035 (real CLI invocation, no
+// simulation), CONST-042 (env-sourced credentials), CONST-050(A)
+// (production-side wiring uses no test mocks).
+func ClaudeCodeClientBuilder(cfg *PoolConfig) ClientBuilder {
+	if cfg == nil {
+		return func(_ context.Context) (Agent, error) {
+			return nil, ErrClaudeCodeClientNotWired
+		}
+	}
+	agentCfg := ClaudeCodeAgentConfig{
+		Binary: cfg.BinaryPath,
+	}
 	return func(_ context.Context) (Agent, error) {
-		return nil, ErrClaudeCodeClientNotWired
+		a, err := NewClaudeCodeAgent(agentCfg)
+		if err != nil {
+			return nil, err
+		}
+		return a, nil
+	}
+}
+
+// ClaudeCodeClientBuilderFromConfig is the round-66 strict-config
+// entrypoint: it requires a non-zero ClaudeCodeBuilderConfig and
+// surfaces ErrClaudeCodeClientNotConfigured otherwise. Use this when
+// the caller wants the "no implicit PATH fallback" contract.
+func ClaudeCodeClientBuilderFromConfig(cfg ClaudeCodeBuilderConfig) ClientBuilder {
+	if cfg.IsZero() {
+		return func(_ context.Context) (Agent, error) {
+			return nil, ErrClaudeCodeClientNotConfigured
+		}
+	}
+	agentCfg := ClaudeCodeAgentConfig{
+		Binary:     cfg.Binary,
+		PromptFlag: cfg.PromptFlag,
+		ExtraArgs:  cfg.ExtraArgs,
+		WorkingDir: cfg.WorkingDir,
+		Env:        cfg.Env,
+	}
+	return func(_ context.Context) (Agent, error) {
+		a, err := NewClaudeCodeAgent(agentCfg)
+		if err != nil {
+			return nil, err
+		}
+		return a, nil
 	}
 }
 

@@ -334,11 +334,44 @@ func TestOpenCodeClientBuilder_BinaryNotFound_ReturnsBinaryNotFound(t *testing.T
 	}
 }
 
-func TestClaudeCodeClientBuilder_NotWired_ReturnsSentinel(t *testing.T) {
-	b := ClaudeCodeClientBuilder(&PoolConfig{Size: 1})
+// TestClaudeCodeClientBuilder_NilConfig_ReturnsNarrowedSentinel —
+// round-66 §11.4 narrows ErrClaudeCodeClientNotWired to the nil-cfg
+// backstop only. The round-60 contract that pinned this sentinel for
+// the `&PoolConfig{Size: 1}` (cfg present, BinaryPath empty) path no
+// longer holds — round-66 wires NewClaudeCodeAgent which now tries
+// the PATH-resolved default `claude` binary and either succeeds (if
+// installed) or surfaces ErrClaudeCodeBinaryNotFound. Only the
+// nil-cfg programmer-error path still routes through this sentinel.
+func TestClaudeCodeClientBuilder_NilConfig_ReturnsNarrowedSentinel(t *testing.T) {
+	b := ClaudeCodeClientBuilder(nil)
 	a, err := b(context.Background())
-	if err == nil || a != nil || !errors.Is(err, ErrClaudeCodeClientNotWired) {
-		t.Errorf("got (agent=%v err=%v), want (nil, errors.Is=ErrClaudeCodeClientNotWired)", a, err)
+	if err == nil {
+		t.Fatal("ClaudeCodeClientBuilder(nil) returned nil error — narrowed round-60 sentinel regression")
+	}
+	if a != nil {
+		t.Errorf("ClaudeCodeClientBuilder returned non-nil agent alongside error: %v", a)
+	}
+	if !errors.Is(err, ErrClaudeCodeClientNotWired) {
+		t.Errorf("errors.Is(err, ErrClaudeCodeClientNotWired) = false; err = %v", err)
+	}
+}
+
+// TestClaudeCodeClientBuilder_BinaryNotFound_ReturnsBinaryNotFound —
+// round-66 §11.4 lands the real wiring; when the configured
+// BinaryPath resolves to a non-existent binary, the builder MUST
+// surface ErrClaudeCodeBinaryNotFound rather than the narrowed
+// round-60 sentinel.
+func TestClaudeCodeClientBuilder_BinaryNotFound_ReturnsBinaryNotFound(t *testing.T) {
+	b := ClaudeCodeClientBuilder(&PoolConfig{Size: 1, BinaryPath: "/nonexistent/claude"})
+	a, err := b(context.Background())
+	if err == nil {
+		t.Fatal("ClaudeCodeClientBuilder closure returned nil error — round-66 binary-not-found regression")
+	}
+	if a != nil {
+		t.Errorf("ClaudeCodeClientBuilder returned non-nil agent alongside error: %v", a)
+	}
+	if !errors.Is(err, ErrClaudeCodeBinaryNotFound) {
+		t.Errorf("errors.Is(err, ErrClaudeCodeBinaryNotFound) = false; err = %v", err)
 	}
 }
 
@@ -444,6 +477,11 @@ func TestNewQwenCodePool_NilConfig_ReturnsRoundTwentyEightSentinel(t *testing.T)
 // table because its builder is now wired to a real os/exec bridge
 // (NewOpenCodeAgent). Its Acquire outcome depends on PATH state and is
 // pinned by separate round-64 tests (TestOpenCodePool_Round64_*).
+//
+// Round-66 §11.4 note: claude-code is also excluded — round-66 wires
+// ClaudeCodeClientBuilder to NewClaudeCodeAgent. Its Acquire outcome
+// likewise depends on PATH state and is pinned by separate round-66
+// tests in claudecode_agent_test.go.
 func TestProviderPools_ValidConfig_ReturnRealPool_AcquireFailsWithBuilderSentinel(t *testing.T) {
 	cases := []struct {
 		name        string
@@ -451,7 +489,6 @@ func TestProviderPools_ValidConfig_ReturnRealPool_AcquireFailsWithBuilderSentine
 		wantBuilder error
 		wantName    string
 	}{
-		{"claude-code", NewClaudeCodePool, ErrClaudeCodeClientNotWired, "claude-code"},
 		{"gemini", NewGeminiPool, ErrGeminiClientNotWired, "gemini"},
 		{"junie", NewJuniePool, ErrJunieClientNotWired, "junie"},
 		{"qwen-code", NewQwenCodePool, ErrQwenCodeClientNotWired, "qwen-code"},
@@ -558,9 +595,16 @@ func TestNewMultiProviderPool_ValidConfig_BuildsRealPools(t *testing.T) {
 	})
 
 	t.Run("direct_simple_pool_acquire_surfaces_builder_sentinel", func(t *testing.T) {
-		sp, ok := mp.pools["claude-code"].(*SimpleAgentPool)
+		// Round-66 §11.4 transition: claude-code is now wired (parallel
+		// to opencode round-64), so this sub-case switches to gemini
+		// which remains a still-unwired provider whose SimpleAgentPool
+		// builder surfaces ErrGeminiClientNotWired on direct Acquire.
+		// The contract under test (direct sp.Acquire bubbles the
+		// per-provider builder-sentinel verbatim) is identical — only
+		// the chosen unwired provider has changed.
+		sp, ok := mp.pools["gemini"].(*SimpleAgentPool)
 		if !ok {
-			t.Fatalf("claude-code pool type = %T, want *SimpleAgentPool", mp.pools["claude-code"])
+			t.Fatalf("gemini pool type = %T, want *SimpleAgentPool", mp.pools["gemini"])
 		}
 		a, err := sp.Acquire(context.Background(), AgentRequirements{})
 		if err == nil {
@@ -569,8 +613,8 @@ func TestNewMultiProviderPool_ValidConfig_BuildsRealPools(t *testing.T) {
 		if a != nil {
 			t.Errorf("direct Acquire returned non-nil agent alongside error: %v", a)
 		}
-		if !errors.Is(err, ErrClaudeCodeClientNotWired) {
-			t.Errorf("direct Acquire err did not match ErrClaudeCodeClientNotWired: %v", err)
+		if !errors.Is(err, ErrGeminiClientNotWired) {
+			t.Errorf("direct Acquire err did not match ErrGeminiClientNotWired: %v", err)
 		}
 	})
 }
