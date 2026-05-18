@@ -395,11 +395,23 @@ func TestGeminiClientBuilder_BinaryNotFound_ReturnsBinaryNotFound(t *testing.T) 
 	}
 }
 
-func TestJunieClientBuilder_NotWired_ReturnsSentinel(t *testing.T) {
-	b := JunieClientBuilder(&PoolConfig{Size: 1})
+// TestJunieClientBuilder_BinaryNotFound_ReturnsBinaryNotFound —
+// round-71 §11.4 lands the real wiring; when the configured
+// BinaryPath resolves to a non-existent binary, the builder MUST
+// surface ErrJunieBinaryNotFound rather than the narrowed round-60
+// sentinel. Mirrors the round-66 ClaudeCode + round-69 Gemini
+// binary-not-found transition.
+func TestJunieClientBuilder_BinaryNotFound_ReturnsBinaryNotFound(t *testing.T) {
+	b := JunieClientBuilder(&PoolConfig{Size: 1, BinaryPath: "/nonexistent/junie"})
 	a, err := b(context.Background())
-	if err == nil || a != nil || !errors.Is(err, ErrJunieClientNotWired) {
-		t.Errorf("got (agent=%v err=%v), want (nil, errors.Is=ErrJunieClientNotWired)", a, err)
+	if err == nil {
+		t.Fatal("JunieClientBuilder closure returned nil error — round-71 binary-not-found regression")
+	}
+	if a != nil {
+		t.Errorf("JunieClientBuilder returned non-nil agent alongside error: %v", a)
+	}
+	if !errors.Is(err, ErrJunieBinaryNotFound) {
+		t.Errorf("errors.Is(err, ErrJunieBinaryNotFound) = false; err = %v", err)
 	}
 }
 
@@ -499,6 +511,11 @@ func TestNewQwenCodePool_NilConfig_ReturnsRoundTwentyEightSentinel(t *testing.T)
 // GeminiClientBuilder to NewGeminiAgent. Its Acquire outcome
 // likewise depends on PATH state and is pinned by separate round-69
 // tests in gemini_agent_test.go.
+//
+// Round-71 §11.4 note: junie is also excluded — round-71 wires
+// JunieClientBuilder to NewJunieAgent. Its Acquire outcome
+// likewise depends on PATH state and is pinned by separate round-71
+// tests in junie_agent_test.go.
 func TestProviderPools_ValidConfig_ReturnRealPool_AcquireFailsWithBuilderSentinel(t *testing.T) {
 	cases := []struct {
 		name        string
@@ -506,7 +523,6 @@ func TestProviderPools_ValidConfig_ReturnRealPool_AcquireFailsWithBuilderSentine
 		wantBuilder error
 		wantName    string
 	}{
-		{"junie", NewJuniePool, ErrJunieClientNotWired, "junie"},
 		{"qwen-code", NewQwenCodePool, ErrQwenCodeClientNotWired, "qwen-code"},
 	}
 	for _, tc := range cases {
@@ -611,22 +627,23 @@ func TestNewMultiProviderPool_ValidConfig_BuildsRealPools(t *testing.T) {
 	})
 
 	t.Run("direct_simple_pool_acquire_surfaces_builder_sentinel", func(t *testing.T) {
-		// Round-69 §11.4 transition: gemini is now wired (parallel to
-		// opencode round-64 + claude-code round-66), so this sub-case
-		// switches to junie which remains a still-unwired provider
-		// whose SimpleAgentPool builder surfaces ErrJunieClientNotWired
-		// on direct Acquire. The contract under test (direct sp.Acquire
-		// bubbles the per-provider builder-sentinel verbatim) is
-		// identical — only the chosen unwired provider has changed.
-		junieMP, err := NewMultiProviderPool(map[string]*PoolConfig{
-			"junie": {Size: 1},
+		// Round-71 §11.4 transition: junie is now wired (parallel to
+		// opencode round-64 + claude-code round-66 + gemini round-69),
+		// so this sub-case switches to qwen-code which remains the last
+		// still-unwired provider whose SimpleAgentPool builder surfaces
+		// ErrQwenCodeClientNotWired on direct Acquire. The contract
+		// under test (direct sp.Acquire bubbles the per-provider
+		// builder-sentinel verbatim) is identical — only the chosen
+		// unwired provider has changed.
+		qwenMP, err := NewMultiProviderPool(map[string]*PoolConfig{
+			"qwen-code": {Size: 1},
 		})
 		if err != nil {
-			t.Fatalf("NewMultiProviderPool(junie): %v", err)
+			t.Fatalf("NewMultiProviderPool(qwen-code): %v", err)
 		}
-		sp, ok := junieMP.pools["junie"].(*SimpleAgentPool)
+		sp, ok := qwenMP.pools["qwen-code"].(*SimpleAgentPool)
 		if !ok {
-			t.Fatalf("junie pool type = %T, want *SimpleAgentPool", junieMP.pools["junie"])
+			t.Fatalf("qwen-code pool type = %T, want *SimpleAgentPool", qwenMP.pools["qwen-code"])
 		}
 		a, err := sp.Acquire(context.Background(), AgentRequirements{})
 		if err == nil {
@@ -635,8 +652,8 @@ func TestNewMultiProviderPool_ValidConfig_BuildsRealPools(t *testing.T) {
 		if a != nil {
 			t.Errorf("direct Acquire returned non-nil agent alongside error: %v", a)
 		}
-		if !errors.Is(err, ErrJunieClientNotWired) {
-			t.Errorf("direct Acquire err did not match ErrJunieClientNotWired: %v", err)
+		if !errors.Is(err, ErrQwenCodeClientNotWired) {
+			t.Errorf("direct Acquire err did not match ErrQwenCodeClientNotWired: %v", err)
 		}
 	})
 }

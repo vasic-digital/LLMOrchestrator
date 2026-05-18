@@ -114,14 +114,30 @@ var ErrGeminiClientNotWired = fmt.Errorf(
 		"wired the real os/exec bridge to `gemini -p`; this sentinel " +
 		"now narrows to the nil-cfg backstop path (caller programmer error)")
 
-// ErrJunieClientNotWired is returned by the Junie ClientBuilder
-// until round-61+ wires the Junie (JetBrains AI Assistant CLI) binary
-// integration (anticipated transport: os/exec spawning `junie` CLI
-// configured via cfg.BinaryPath).
+// ErrJunieClientNotWired was the round-60 §11.4 sentinel that
+// signalled "Junie CLI binary integration not implemented in this
+// repository". Round-71 §11.4 lands the real os/exec-based bridge to
+// `junie <prompt>` (see junie_agent.go) — so this sentinel's meaning
+// has been NARROWED, not removed.
+//
+// Round-60 semantics: "no implementation exists; the builder is a stub".
+// Round-71 semantics: "implementation exists, but this code path took
+// the legacy stub branch — caller invoked JunieClientBuilder with
+// nil PoolConfig (programmer error: factories should never propagate
+// a nil cfg into the builder)".
+//
+// In the normal end-to-end path (NewJuniePool with non-nil PoolConfig
+// → JunieClientBuilder → NewJunieAgent), the builder returns a real
+// *JunieAgent and this sentinel never fires. Tests that explicitly
+// pass a nil PoolConfig into JunieClientBuilder continue to receive
+// this sentinel for backward compatibility.
+//
+// See ErrJunieClientNotConfigured (junie_agent.go) for the distinct
+// "config present but zero-value" case landed in round 71.
 var ErrJunieClientNotWired = fmt.Errorf(
-	"junie agent: client SDK integration not wired in this round — " +
-		"pool's Acquire will fail loudly until round-61+ wires the " +
-		"Junie (JetBrains AI Assistant) CLI integration via os/exec")
+	"junie agent: ClientBuilder received nil PoolConfig — round-71 " +
+		"wired the real os/exec bridge to `junie <prompt>`; this sentinel " +
+		"now narrows to the nil-cfg backstop path (caller programmer error)")
 
 // ErrQwenCodeClientNotWired is returned by the Qwen-Code ClientBuilder
 // until round-61+ wires the Qwen-Code SDK integration
@@ -338,11 +354,72 @@ func GeminiClientBuilderFromConfig(cfg GeminiBuilderConfig) ClientBuilder {
 	}
 }
 
-// JunieClientBuilder returns a ClientBuilder that surfaces
-// ErrJunieClientNotWired.
-func JunieClientBuilder(_ *PoolConfig) ClientBuilder {
+// JunieClientBuilder returns a ClientBuilder that constructs a real
+// *JunieAgent on each invocation (round-71 §11.4 wiring).
+//
+// The supplied PoolConfig contributes the BinaryPath (→ cfg.Binary)
+// and the runtime env (sourced from the caller via cfg's lifecycle —
+// the legacy PoolConfig struct does not yet carry an explicit Env
+// field, so JunieAgent inherits the parent process environment
+// through Go's default exec behaviour when cfg.Env stays empty here).
+//
+// Backstop paths:
+//   - nil PoolConfig → ErrJunieClientNotWired (round-60 sentinel,
+//     narrowed to "programmer error: factory propagated nil cfg").
+//   - cfg present but the would-be JunieBuilderConfig is zero-value
+//     (no BinaryPath, no extra args) → caller still gets a working
+//     agent IF `junie` is on $PATH (DefaultJunieBinary fallback).
+//     The distinct ErrJunieClientNotConfigured sentinel fires only
+//     for the explicit JunieClientBuilderFromConfig() entrypoint.
+//   - `junie` binary missing from $PATH → ErrJunieBinaryNotFound
+//     surfaces from NewJunieAgent, gets wrapped by
+//     SimpleAgentPool.Acquire, and reaches the caller errors.Is-
+//     checkable.
+//
+// Constitutional anchors: CONST-035 (real CLI invocation, no
+// simulation), CONST-042 (env-sourced credentials), CONST-050(A)
+// (production-side wiring uses no test mocks).
+func JunieClientBuilder(cfg *PoolConfig) ClientBuilder {
+	if cfg == nil {
+		return func(_ context.Context) (Agent, error) {
+			return nil, ErrJunieClientNotWired
+		}
+	}
+	agentCfg := JunieAgentConfig{
+		Binary: cfg.BinaryPath,
+	}
 	return func(_ context.Context) (Agent, error) {
-		return nil, ErrJunieClientNotWired
+		a, err := NewJunieAgent(agentCfg)
+		if err != nil {
+			return nil, err
+		}
+		return a, nil
+	}
+}
+
+// JunieClientBuilderFromConfig is the round-71 strict-config
+// entrypoint: it requires a non-zero JunieBuilderConfig and surfaces
+// ErrJunieClientNotConfigured otherwise. Use this when the caller
+// wants the "no implicit PATH fallback" contract.
+func JunieClientBuilderFromConfig(cfg JunieBuilderConfig) ClientBuilder {
+	if cfg.IsZero() {
+		return func(_ context.Context) (Agent, error) {
+			return nil, ErrJunieClientNotConfigured
+		}
+	}
+	agentCfg := JunieAgentConfig{
+		Binary:     cfg.Binary,
+		PromptFlag: cfg.PromptFlag,
+		ExtraArgs:  cfg.ExtraArgs,
+		WorkingDir: cfg.WorkingDir,
+		Env:        cfg.Env,
+	}
+	return func(_ context.Context) (Agent, error) {
+		a, err := NewJunieAgent(agentCfg)
+		if err != nil {
+			return nil, err
+		}
+		return a, nil
 	}
 }
 
