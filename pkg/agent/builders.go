@@ -89,14 +89,30 @@ var ErrClaudeCodeClientNotWired = fmt.Errorf(
 		"wired the real os/exec bridge to `claude --print`; this sentinel " +
 		"now narrows to the nil-cfg backstop path (caller programmer error)")
 
-// ErrGeminiClientNotWired is returned by the Gemini ClientBuilder
-// until round-61+ wires the Gemini provider integration
-// (anticipated transport: HTTP to Google AI Studio / Vertex AI
-// generateContent endpoint with cfg.APIKey).
+// ErrGeminiClientNotWired was the round-60 §11.4 sentinel that
+// signalled "Gemini CLI binary integration not implemented in this
+// repository". Round-69 §11.4 lands the real os/exec-based bridge to
+// `gemini -p` (see gemini_agent.go) — so this sentinel's meaning has
+// been NARROWED, not removed.
+//
+// Round-60 semantics: "no implementation exists; the builder is a stub".
+// Round-69 semantics: "implementation exists, but this code path took
+// the legacy stub branch — caller invoked GeminiClientBuilder with
+// nil PoolConfig (programmer error: factories should never propagate a
+// nil cfg into the builder)".
+//
+// In the normal end-to-end path (NewGeminiPool with non-nil PoolConfig
+// → GeminiClientBuilder → NewGeminiAgent), the builder returns a
+// real *GeminiAgent and this sentinel never fires. Tests that
+// explicitly pass a nil PoolConfig into GeminiClientBuilder continue
+// to receive this sentinel for backward compatibility.
+//
+// See ErrGeminiClientNotConfigured (gemini_agent.go) for the
+// distinct "config present but zero-value" case landed in round 69.
 var ErrGeminiClientNotWired = fmt.Errorf(
-	"gemini agent: client SDK integration not wired in this round — " +
-		"pool's Acquire will fail loudly until round-61+ wires the " +
-		"Gemini HTTP transport to generativelanguage.googleapis.com")
+	"gemini agent: ClientBuilder received nil PoolConfig — round-69 " +
+		"wired the real os/exec bridge to `gemini -p`; this sentinel " +
+		"now narrows to the nil-cfg backstop path (caller programmer error)")
 
 // ErrJunieClientNotWired is returned by the Junie ClientBuilder
 // until round-61+ wires the Junie (JetBrains AI Assistant CLI) binary
@@ -253,11 +269,72 @@ func ClaudeCodeClientBuilderFromConfig(cfg ClaudeCodeBuilderConfig) ClientBuilde
 	}
 }
 
-// GeminiClientBuilder returns a ClientBuilder that surfaces
-// ErrGeminiClientNotWired.
-func GeminiClientBuilder(_ *PoolConfig) ClientBuilder {
+// GeminiClientBuilder returns a ClientBuilder that constructs a real
+// *GeminiAgent on each invocation (round-69 §11.4 wiring).
+//
+// The supplied PoolConfig contributes the BinaryPath (→ cfg.Binary)
+// and the runtime env (sourced from the caller via cfg's lifecycle —
+// the legacy PoolConfig struct does not yet carry an explicit Env
+// field, so GeminiAgent inherits the parent process environment
+// through Go's default exec behaviour when cfg.Env stays empty here).
+//
+// Backstop paths:
+//   - nil PoolConfig → ErrGeminiClientNotWired (round-60 sentinel,
+//     narrowed to "programmer error: factory propagated nil cfg").
+//   - cfg present but the would-be GeminiBuilderConfig is zero-value
+//     (no BinaryPath, no extra args) → caller still gets a working
+//     agent IF `gemini` is on $PATH (DefaultGeminiBinary fallback).
+//     The distinct ErrGeminiClientNotConfigured sentinel fires only
+//     for the explicit GeminiClientBuilderFromConfig() entrypoint.
+//   - `gemini` binary missing from $PATH → ErrGeminiBinaryNotFound
+//     surfaces from NewGeminiAgent, gets wrapped by
+//     SimpleAgentPool.Acquire, and reaches the caller errors.Is-
+//     checkable.
+//
+// Constitutional anchors: CONST-035 (real CLI invocation, no
+// simulation), CONST-042 (env-sourced credentials), CONST-050(A)
+// (production-side wiring uses no test mocks).
+func GeminiClientBuilder(cfg *PoolConfig) ClientBuilder {
+	if cfg == nil {
+		return func(_ context.Context) (Agent, error) {
+			return nil, ErrGeminiClientNotWired
+		}
+	}
+	agentCfg := GeminiAgentConfig{
+		Binary: cfg.BinaryPath,
+	}
 	return func(_ context.Context) (Agent, error) {
-		return nil, ErrGeminiClientNotWired
+		a, err := NewGeminiAgent(agentCfg)
+		if err != nil {
+			return nil, err
+		}
+		return a, nil
+	}
+}
+
+// GeminiClientBuilderFromConfig is the round-69 strict-config
+// entrypoint: it requires a non-zero GeminiBuilderConfig and surfaces
+// ErrGeminiClientNotConfigured otherwise. Use this when the caller
+// wants the "no implicit PATH fallback" contract.
+func GeminiClientBuilderFromConfig(cfg GeminiBuilderConfig) ClientBuilder {
+	if cfg.IsZero() {
+		return func(_ context.Context) (Agent, error) {
+			return nil, ErrGeminiClientNotConfigured
+		}
+	}
+	agentCfg := GeminiAgentConfig{
+		Binary:     cfg.Binary,
+		PromptFlag: cfg.PromptFlag,
+		ExtraArgs:  cfg.ExtraArgs,
+		WorkingDir: cfg.WorkingDir,
+		Env:        cfg.Env,
+	}
+	return func(_ context.Context) (Agent, error) {
+		a, err := NewGeminiAgent(agentCfg)
+		if err != nil {
+			return nil, err
+		}
+		return a, nil
 	}
 }
 
