@@ -14,7 +14,10 @@
 # %s / %d order is preserved in the bundle-key naming as documentation.
 #
 # Round 115 — first 5 entries (1 per builder agent invocationError.Error()).
-# Remaining ~12 hits queued for later rounds.
+# Round 204 — second batch of 10 entries: the remaining two branches
+# (exit-code-only + wrapped-error) per builder agent invocationError.Error(),
+# closing the per-builder Error() i18n surface (5 builders × 3 branches =
+# 15 total = 5 from round-115 + 10 from round-204).
 
 llmorchestrator_agent_opencode_invocation_failed_with_stderr:
   other: "{{.sentinel}}: {{.op}} exit {{.exitCode}}: {{.stderr}}"
@@ -30,3 +33,37 @@ llmorchestrator_agent_junie_invocation_failed_with_stderr:
 
 llmorchestrator_agent_qwencode_invocation_failed_with_stderr:
   other: "{{.sentinel}}: {{.op}} exit {{.exitCode}}: {{.stderr}}"
+
+# Round 204 — exit-code-only branch (no stderr captured).
+
+llmorchestrator_agent_opencode_invocation_failed_exit_code_only:
+  other: "{{.sentinel}}: {{.op}} exit {{.exitCode}}"
+
+llmorchestrator_agent_claudecode_invocation_failed_exit_code_only:
+  other: "{{.sentinel}}: {{.op}} exit {{.exitCode}}"
+
+llmorchestrator_agent_gemini_invocation_failed_exit_code_only:
+  other: "{{.sentinel}}: {{.op}} exit {{.exitCode}}"
+
+llmorchestrator_agent_junie_invocation_failed_exit_code_only:
+  other: "{{.sentinel}}: {{.op}} exit {{.exitCode}}"
+
+llmorchestrator_agent_qwencode_invocation_failed_exit_code_only:
+  other: "{{.sentinel}}: {{.op}} exit {{.exitCode}}"
+
+# Round 204 — wrapped-error branch (non-exit failure; e.g. context cancel).
+
+llmorchestrator_agent_opencode_invocation_failed_wrapped:
+  other: "{{.sentinel}}: {{.op}}: {{.wrapped}}"
+
+llmorchestrator_agent_claudecode_invocation_failed_wrapped:
+  other: "{{.sentinel}}: {{.op}}: {{.wrapped}}"
+
+llmorchestrator_agent_gemini_invocation_failed_wrapped:
+  other: "{{.sentinel}}: {{.op}}: {{.wrapped}}"
+
+llmorchestrator_agent_junie_invocation_failed_wrapped:
+  other: "{{.sentinel}}: {{.op}}: {{.wrapped}}"
+
+llmorchestrator_agent_qwencode_invocation_failed_wrapped:
+  other: "{{.sentinel}}: {{.op}}: {{.wrapped}}"

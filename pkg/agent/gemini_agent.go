@@ -470,7 +470,39 @@ func (e *geminiInvocationError) Error() string {
 		return fmt.Sprintf("%s: %s exit %d: %s", ErrGeminiInvocationFailed.Error(), e.op, e.exitCode, e.stderr)
 	}
 	if e.exitCode != 0 {
+		// CONST-046 round-204: exit-code-only branch routed through i18n.
+		const id = "llmorchestrator_agent_gemini_invocation_failed_exit_code_only"
+		msg, terr := i18n.Pkg().T(
+			context.Background(),
+			id,
+			map[string]any{
+				"sentinel": ErrGeminiInvocationFailed.Error(),
+				"op":       e.op,
+				"exitCode": e.exitCode,
+			},
+		)
+		if terr == nil && msg != "" && msg != id {
+			return msg
+		}
 		return fmt.Sprintf("%s: %s exit %d", ErrGeminiInvocationFailed.Error(), e.op, e.exitCode)
+	}
+	// CONST-046 round-204: wrapped-error branch routed through i18n.
+	const id = "llmorchestrator_agent_gemini_invocation_failed_wrapped"
+	wrappedStr := ""
+	if e.wrapped != nil {
+		wrappedStr = e.wrapped.Error()
+	}
+	msg, terr := i18n.Pkg().T(
+		context.Background(),
+		id,
+		map[string]any{
+			"sentinel": ErrGeminiInvocationFailed.Error(),
+			"op":       e.op,
+			"wrapped":  wrappedStr,
+		},
+	)
+	if terr == nil && msg != "" && msg != id {
+		return msg
 	}
 	return fmt.Sprintf("%s: %s: %v", ErrGeminiInvocationFailed.Error(), e.op, e.wrapped)
 }
