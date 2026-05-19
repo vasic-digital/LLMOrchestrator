@@ -1,33 +1,73 @@
-# Binaries
+# LLMOrchestrator .gitignore — CONST-053 compliant
+# Anti-bluff invariant: a .gitignore line is not enough; no file
+# matching the patterns below may be currently tracked.
+
+# Build artefacts (CONST-053 §1)
 *.exe
 *.dll
 *.so
 *.dylib
+*.a
+*.o
+/bin/
+/build/
+/dist/
+/out/
 /orchestrator
+/runner
+target/
 
-# Test
+# Test artefacts
 *.test
 coverage.out
 coverage.html
+cover.out
+*.prof
+profile.out
 
-# IDE
-.idea/
-.vscode/
+# Cache files (CONST-053 §2)
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+node_modules/
+.cache/
+.gradle/
+.terraform/
+.gopls-cache/
+
+# Temp files (CONST-053 §3)
+*.tmp
 *.swp
 *.swo
+*.orig
+*.rej
 *~
-
-# OS
 .DS_Store
 Thumbs.db
 
-# Environment
+# Sensitive-data files (CONST-053 §4 + CONST-042 secret-leak)
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+id_rsa*
+id_ed25519*
+.netrc
+secrets/
+api_keys.sh
 
-# Build
-/bin/
-/dist/
-
+# Generated reports / logs (CONST-053 §5)
+*.log
+htmlcov/
 reports/demos/
+
+# OS / IDE personal state (CONST-053 §6)
+.idea/
+.history/
+.vscode/
+
+# Runner-emitted temp dirs (round-291 — os.MkdirTemp prefix)
+llmorch-round*-*

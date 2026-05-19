@@ -1,0 +1,7 @@
+# LLMOrchestrator round-291 anti-bluff fixture — locale: ja
+locale: ja
+prompt_json: '{"actions":[{"type":"type","target":"username_field","value":"taro","confidence":0.81}]}'
+expect_action_type: type
+expect_action_target: username_field
+expect_pipe_content: round-291 ja pipe payload
+expect_inbox_id: round-291-ja

@@ -1,0 +1,7 @@
+# LLMOrchestrator round-291 anti-bluff fixture — locale: de
+locale: de
+prompt_json: '{"actions":[{"type":"click","target":"einstellungen_button","confidence":0.95}]}'
+expect_action_type: click
+expect_action_target: einstellungen_button
+expect_pipe_content: round-291 de pipe payload
+expect_inbox_id: round-291-de

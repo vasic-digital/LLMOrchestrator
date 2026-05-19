@@ -1,0 +1,7 @@
+# LLMOrchestrator round-291 anti-bluff fixture — locale: sr
+locale: sr
+prompt_json: '{"actions":[{"type":"navigate","target":"prijava_stranica","confidence":0.88}]}'
+expect_action_type: navigate
+expect_action_target: prijava_stranica
+expect_pipe_content: round-291 sr pipe payload
+expect_inbox_id: round-291-sr
