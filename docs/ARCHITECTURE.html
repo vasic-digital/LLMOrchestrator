@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>ARCHITECTURE</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">ARCHITECTURE</h1>
+</header>
+<h1 id="llmorchestrator-architecture">LLMOrchestrator Architecture</h1>
+<h2 id="overview">Overview</h2>
+<p>Standalone Go module (<code>digital.vasic.llmorchestrator</code>) for
+managing headless CLI coding agents with hybrid pipe+file communication.
+Orchestrates multiple agent types (Claude Code, OpenCode, Gemini, Junie,
+Qwen Code) through a unified interface with pooling, health monitoring,
+and circuit breaking.</p>
+<h2 id="package-structure">Package Structure</h2>
+<pre><code>pkg/
+  agent/     -- Agent interface, AgentPool, MultiProviderPool, HealthMonitor, CircuitBreaker
+  adapter/   -- BaseAdapter + 5 CLI agent adapters
+  protocol/  -- PipeTransport (JSON-lines) and FileTransport (inbox/outbox/shared)
+  parser/    -- ResponseParser (JSON/action/issue extraction from raw LLM output)
+  config/    -- .env loading, agent path resolution, validation
+cmd/
+  orchestrator/ -- CLI entry point</code></pre>
+<h2 id="agent-management">Agent Management</h2>
+<h3 id="agent-interface">Agent Interface</h3>
+<div class="sourceCode" id="cb2"><pre class="sourceCode go"><code class="sourceCode go"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> Agent <span class="kw">interface</span> <span class="op">{</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    ID<span class="op">()</span> <span class="dt">string</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    Name<span class="op">()</span> <span class="dt">string</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    Start<span class="op">(</span>ctx context<span class="op">.</span>Context<span class="op">)</span> <span class="dt">error</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    Stop<span class="op">(</span>ctx context<span class="op">.</span>Context<span class="op">)</span> <span class="dt">error</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    IsRunning<span class="op">()</span> <span class="dt">bool</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    Health<span class="op">(</span>ctx context<span class="op">.</span>Context<span class="op">)</span> HealthStatus</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    Send<span class="op">(</span>ctx context<span class="op">.</span>Context<span class="op">,</span> prompt <span class="dt">string</span><span class="op">)</span> <span class="op">(</span>Response<span class="op">,</span> <span class="dt">error</span><span class="op">)</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    SendStream<span class="op">(</span>ctx context<span class="op">.</span>Context<span class="op">,</span> prompt <span class="dt">string</span><span class="op">)</span> <span class="op">(&lt;-</span><span class="kw">chan</span> StreamChunk<span class="op">,</span> <span class="dt">error</span><span class="op">)</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    SendWithAttachments<span class="op">(</span>ctx context<span class="op">.</span>Context<span class="op">,</span> prompt <span class="dt">string</span><span class="op">,</span> attachments <span class="op">[]</span>Attachment<span class="op">)</span> <span class="op">(</span>Response<span class="op">,</span> <span class="dt">error</span><span class="op">)</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>    OutputDir<span class="op">()</span> <span class="dt">string</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>    Capabilities<span class="op">()</span> AgentCapabilities</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>    SupportsVision<span class="op">()</span> <span class="dt">bool</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>    ModelInfo<span class="op">()</span> ModelInfo</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h3 id="agent-pool">Agent Pool</h3>
+<p><code>AgentPool</code> is thread-safe (<code>sync.Mutex</code> +
+<code>sync.Cond</code>):</p>
+<ul>
+<li><code>Register(agent)</code> -- adds an agent to the pool</li>
+<li><code>Acquire(ctx, requirements)</code> -- blocks until a matching
+agent is available (supports context cancellation)</li>
+<li><code>Release(agent)</code> -- returns an agent for reuse</li>
+<li><code>HealthCheck(ctx)</code> -- runs health checks on all
+registered agents</li>
+<li><code>Shutdown(ctx)</code> -- gracefully stops all agents</li>
+</ul>
+<h3 id="multiproviderpool">MultiProviderPool</h3>
+<p>Manages separate pools per provider type. <code>AgentSelector</code>
+interface chooses the best provider for a given request. Default:
+round-robin selection.</p>
+<p>Supported providers: <code>opencode</code>, <code>claude-code</code>,
+<code>gemini</code>, <code>junie</code>, <code>qwen-code</code>.</p>
+<h2 id="adapter-layer">Adapter Layer</h2>
+<p><code>BaseAdapter</code> provides shared process management
+(start/stop/health). Each concrete adapter only implements parsing:</p>
+<table>
+<thead>
+<tr>
+<th>Adapter</th>
+<th>Agent</th>
+<th>Communication</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>OpenCodeAdapter</code></td>
+<td>OpenCode CLI</td>
+<td>Pipe (stdin/stdout)</td>
+</tr>
+<tr>
+<td><code>OpenCodeHeadlessAdapter</code></td>
+<td>OpenCode headless</td>
+<td>Pipe (JSON-lines)</td>
+</tr>
+<tr>
+<td><code>ClaudeCodeAdapter</code></td>
+<td>Claude Code CLI</td>
+<td>Pipe (stdin/stdout)</td>
+</tr>
+<tr>
+<td><code>GeminiAdapter</code></td>
+<td>Gemini CLI</td>
+<td>Pipe (stdin/stdout)</td>
+</tr>
+<tr>
+<td><code>JunieAdapter</code></td>
+<td>JetBrains Junie</td>
+<td>File (inbox/outbox)</td>
+</tr>
+<tr>
+<td><code>QwenCodeAdapter</code></td>
+<td>Qwen Code CLI</td>
+<td>Pipe (stdin/stdout)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="communication-protocols">Communication Protocols</h2>
+<h3 id="pipetransport">PipeTransport</h3>
+<p>JSON-lines over stdin/stdout. Each message is a single JSON object
+terminated by newline. Used by most adapters.</p>
+<h3 id="filetransport">FileTransport</h3>
+<p>Inbox/outbox/shared directory-based exchange. The orchestrator writes
+a prompt file to the agent's inbox; the agent writes its response to the
+outbox. Used by Junie and other agents that lack pipe support.</p>
+<h2 id="response-parser">Response Parser</h2>
+<p><code>ResponseParser</code> extracts structured data from raw LLM
+text output:</p>
+<ul>
+<li>JSON block extraction (fenced code blocks)</li>
+<li>Action extraction (file edits, commands, tool calls)</li>
+<li>Issue extraction (errors, warnings)</li>
+<li>Security: path traversal protection, response length limits, API key
+masking</li>
+</ul>
+<h2 id="fault-tolerance">Fault Tolerance</h2>
+<ul>
+<li><strong>CircuitBreaker</strong>: 3 consecutive failures opens the
+circuit for 60 seconds. Prevents cascading failures when an agent
+process is unresponsive.</li>
+<li><strong>HealthMonitor</strong>: Periodic health checks on all
+agents. Tracks status, latency, consecutive failures.</li>
+<li><strong>Graceful shutdown</strong>: Pool shutdown stops all agents
+in order, respecting context deadlines.</li>
+</ul>
+<h2 id="key-design-decisions">Key Design Decisions</h2>
+<ul>
+<li><strong>BaseAdapter pattern</strong>: Shared process lifecycle logic
+reduces duplication across 5+ adapters.</li>
+<li><strong>Blocking Acquire</strong>: <code>sync.Cond</code> enables
+efficient waiting without polling. Context cancellation ensures no
+goroutine leaks.</li>
+<li><strong>Protocol abstraction</strong>: Pipe vs. file transport is
+hidden behind the Agent interface. Callers do not know or care how the
+agent communicates.</li>
+<li><strong>Security-first parsing</strong>: All extracted file paths
+are validated against traversal attacks. Response sizes are
+bounded.</li>
+</ul>
+</body>
+</html>
