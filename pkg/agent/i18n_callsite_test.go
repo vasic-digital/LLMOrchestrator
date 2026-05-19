@@ -107,3 +107,153 @@ func TestInvocationErrors_NoopTranslator_FallsBackToFmt(t *testing.T) {
 		t.Fatalf("Error() = %q, want substring %q", got, wantSubstr)
 	}
 }
+
+// Round-204 §11.4 sentinel evidence: the exit-code-only branch (no
+// stderr captured) on every builder agent's invocationError.Error()
+// MUST route through i18n when a real Translator is installed.
+//
+// CONST-050(A): mocks are permitted in unit tests only.
+func TestInvocationErrors_ExitCodeOnly_RouteUserFacingTextThroughI18n(t *testing.T) {
+	tcs := []struct {
+		name   string
+		err    error
+		wantID string
+	}{
+		{
+			name:   "opencode",
+			err:    &invocationError{op: "send", exitCode: 1},
+			wantID: "llmorchestrator_agent_opencode_invocation_failed_exit_code_only",
+		},
+		{
+			name:   "claudecode",
+			err:    &claudeCodeInvocationError{op: "send", exitCode: 2},
+			wantID: "llmorchestrator_agent_claudecode_invocation_failed_exit_code_only",
+		},
+		{
+			name:   "gemini",
+			err:    &geminiInvocationError{op: "send", exitCode: 3},
+			wantID: "llmorchestrator_agent_gemini_invocation_failed_exit_code_only",
+		},
+		{
+			name:   "junie",
+			err:    &junieInvocationError{op: "send", exitCode: 4},
+			wantID: "llmorchestrator_agent_junie_invocation_failed_exit_code_only",
+		},
+		{
+			name:   "qwencode",
+			err:    &qwenCodeInvocationError{op: "send", exitCode: 5},
+			wantID: "llmorchestrator_agent_qwencode_invocation_failed_exit_code_only",
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			cap := &captureTranslator{out: "TRANSLATED_EC_" + tc.name}
+			i18n.SetPkgTranslator(cap)
+			t.Cleanup(func() { i18n.SetPkgTranslator(nil) })
+
+			got := tc.err.Error()
+			if got != "TRANSLATED_EC_"+tc.name {
+				t.Fatalf("Error() = %q, want %q (round-204 exit-code i18n seam not wired)", got, "TRANSLATED_EC_"+tc.name)
+			}
+			if cap.lastID != tc.wantID {
+				t.Fatalf("translator received id %q, want %q", cap.lastID, tc.wantID)
+			}
+		})
+	}
+}
+
+// Round-204 §11.4 sentinel evidence: the wrapped-error branch
+// (exitCode == 0, no stderr, non-nil wrapped error) on every builder
+// agent's invocationError.Error() MUST route through i18n when a real
+// Translator is installed.
+func TestInvocationErrors_Wrapped_RouteUserFacingTextThroughI18n(t *testing.T) {
+	syntheticWrapped := errSynthetic{msg: "wrapped-error-synthetic-PQR"}
+	tcs := []struct {
+		name   string
+		err    error
+		wantID string
+	}{
+		{
+			name:   "opencode",
+			err:    &invocationError{op: "send", wrapped: syntheticWrapped},
+			wantID: "llmorchestrator_agent_opencode_invocation_failed_wrapped",
+		},
+		{
+			name:   "claudecode",
+			err:    &claudeCodeInvocationError{op: "send", wrapped: syntheticWrapped},
+			wantID: "llmorchestrator_agent_claudecode_invocation_failed_wrapped",
+		},
+		{
+			name:   "gemini",
+			err:    &geminiInvocationError{op: "send", wrapped: syntheticWrapped},
+			wantID: "llmorchestrator_agent_gemini_invocation_failed_wrapped",
+		},
+		{
+			name:   "junie",
+			err:    &junieInvocationError{op: "send", wrapped: syntheticWrapped},
+			wantID: "llmorchestrator_agent_junie_invocation_failed_wrapped",
+		},
+		{
+			name:   "qwencode",
+			err:    &qwenCodeInvocationError{op: "send", wrapped: syntheticWrapped},
+			wantID: "llmorchestrator_agent_qwencode_invocation_failed_wrapped",
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			cap := &captureTranslator{out: "TRANSLATED_WR_" + tc.name}
+			i18n.SetPkgTranslator(cap)
+			t.Cleanup(func() { i18n.SetPkgTranslator(nil) })
+
+			got := tc.err.Error()
+			if got != "TRANSLATED_WR_"+tc.name {
+				t.Fatalf("Error() = %q, want %q (round-204 wrapped-error i18n seam not wired)", got, "TRANSLATED_WR_"+tc.name)
+			}
+			if cap.lastID != tc.wantID {
+				t.Fatalf("translator received id %q, want %q", cap.lastID, tc.wantID)
+			}
+		})
+	}
+}
+
+// Round-204 paired mutation evidence: with NoopTranslator (default),
+// the exit-code-only branch MUST fall back to fmt.Sprintf so the
+// captured exit code stays visible — this proves the bare-ID surface
+// never leaks to users for this branch either.
+func TestInvocationErrors_ExitCodeOnly_NoopTranslator_FallsBackToFmt(t *testing.T) {
+	i18n.SetPkgTranslator(nil) // reset to default Noop
+	err := &invocationError{op: "send", exitCode: 42}
+	got := err.Error()
+	if got == "llmorchestrator_agent_opencode_invocation_failed_exit_code_only" {
+		t.Fatalf("Error() leaked bare message ID: %q", got)
+	}
+	if !strings.Contains(got, "exit 42") {
+		t.Fatalf("Error() = %q, want substring %q", got, "exit 42")
+	}
+}
+
+// Round-204 paired mutation evidence: with NoopTranslator (default),
+// the wrapped-error branch MUST fall back to fmt.Sprintf so the
+// wrapped error's text stays visible to callers.
+func TestInvocationErrors_Wrapped_NoopTranslator_FallsBackToFmt(t *testing.T) {
+	i18n.SetPkgTranslator(nil) // reset to default Noop
+	err := &invocationError{op: "send", wrapped: errSynthetic{msg: "wrapped-synthetic-LMN"}}
+	got := err.Error()
+	if got == "llmorchestrator_agent_opencode_invocation_failed_wrapped" {
+		t.Fatalf("Error() leaked bare message ID: %q", got)
+	}
+	if !strings.Contains(got, "wrapped-synthetic-LMN") {
+		t.Fatalf("Error() = %q, want substring %q", got, "wrapped-synthetic-LMN")
+	}
+}
+
+// errSynthetic is a CONST-050(A)-permitted unit-test synthetic error
+// used to drive the wrapped-error branch deterministically without
+// needing a real *exec.ExitError.
+type errSynthetic struct {
+	msg string
+}
+
+func (e errSynthetic) Error() string { return e.msg }
