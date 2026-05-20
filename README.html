@@ -242,62 +242,198 @@
 </header>
 <h1 id="llmorchestrator">LLMOrchestrator</h1>
 <p>Standalone Go module for managing headless CLI agents (OpenCode,
-Claude Code, Gemini, Junie, Qwen Code) with hybrid pipe+file
-communication protocol.</p>
+Claude Code, Gemini, Junie, Qwen Code) with a hybrid pipe+file
+communication protocol and a fully decoupled (CONST-051(B))
+<code>i18n.Translator</code> abstraction for user-facing strings.</p>
+<p><strong>Go module:</strong>
+<code>digital.vasic.llmorchestrator</code> <strong>Round:</strong> 275
+(deep-doc + Challenge enrichment; mirror of round-220 template applied
+across the owned-submodule fleet).</p>
 <h2 id="overview">Overview</h2>
 <p>LLMOrchestrator provides a unified interface for spawning, managing,
-and communicating with multiple LLM-powered CLI agents. It supports
-real-time stdin/stdout pipe communication (JSON-lines protocol) and
-file-based artifact exchange.</p>
-<p><strong>Go Module:</strong>
-<code>digital.vasic.llmorchestrator</code></p>
+and communicating with multiple LLM-powered CLI agents. It is
+<strong>shared infrastructure</strong> consumed by multiple independent
+projects — its specialised responsibility makes it reusable, and that
+reusability is destroyed the moment any consumer's specifics leak in
+(CONST-051(B)). Every consumer wires its own <code>Translator</code> for
+user-facing text; the built-in <code>NoopTranslator</code> returns the
+message id verbatim so missing translations surface visibly rather than
+silently as empty strings (the anti-bluff contract documented in
+<code>pkg/i18n/translator.go</code>).</p>
+<h2 id="anti-bluff-guarantees-const-035--article-xi-119">Anti-bluff
+guarantees (CONST-035 / Article XI §11.9)</h2>
+<p>This module's tests and Challenges exist to <strong>prove</strong>
+the codebase works for end users — not merely to compile. The round-275
+deliverables enforce:</p>
+<ul>
+<li><strong>Real disk I/O.</strong>
+<code>challenges/runner/main.go</code> invariant 4 round-trips a
+<code>protocol.FileMessage</code> through <code>os.MkdirTemp</code> →
+<code>FileTransport.WriteToInbox</code> →
+<code>FileTransport.ReadFromInbox</code> → equality check, on real
+filesystem.</li>
+<li><strong>Real JSON encoding.</strong> Invariant 3 marshals and
+unmarshals a real <code>protocol.PipeMessage</code> per locale and
+asserts byte-level field preservation (<code>Content</code>,
+<code>Type</code>, <code>RequestID</code>). A silent struct-tag drift
+would fail the gate.</li>
+<li><strong>Real parser execution.</strong> Invariant 1 feeds the
+5-locale <code>prompt_json</code> fixtures through the real
+<code>parser.DefaultParser</code> and asserts the produced
+<code>agent.Action</code> slice contains an entry matching the fixture's
+<code>expect_action_type</code> + <code>expect_action_target</code>. A
+stub-parser returning an empty slice would FAIL the gate.</li>
+<li><strong>Real defensive contract.</strong> Invariant 2 asserts
+<code>parser.Parse("")</code> returns <code>ErrEmptyInput</code>. Under
+<code>LLMORCH_MUTATE_RUNNER=1</code> the polarity flips → the Challenge
+runner exits non-zero → the wrapper turns that into exit 99
+(paired-mutation success per CONST-050(A) / §1.1). A runner that exited
+0 under mutation would prove it is a bluff gate.</li>
+<li><strong>Real i18n surface.</strong> Invariant 5 asserts
+<code>NoopTranslator.T</code> / <code>NoopTranslator.TPlural</code> /
+<code>Pkg()</code> all return the message id verbatim across five
+locales (English, Serbian, Japanese, Spanish, German). A
+hardcoded-English regression would surface a per-locale FAIL line, not a
+green-but-broken UI.</li>
+<li><strong>No mocks in Challenges.</strong> Per CONST-050(A),
+Challenges exercise the real, fully implemented system. Mocks live only
+in <code>*_test.go</code> unit-test sources.</li>
+</ul>
 <h2 id="features">Features</h2>
 <ul>
-<li><strong>5 CLI Adapters</strong>: OpenCode, Claude Code, Gemini,
+<li><strong>5 CLI adapters</strong>: OpenCode, Claude Code, Gemini,
 Junie, Qwen Code</li>
-<li><strong>Thread-safe Agent Pool</strong>: Capability-based matching
-with <code>Acquire(ctx, requirements)</code></li>
-<li><strong>Circuit Breaker</strong>: Per-agent health monitoring (3
-consecutive failures = unhealthy)</li>
-<li><strong>Hybrid Communication</strong>: Pipe (real-time JSON-lines) +
-File (inbox/outbox/shared directories)</li>
-<li><strong>Response Parser</strong>: Structured extraction of actions,
-issues, and JSON from raw LLM output</li>
-<li><strong>Security</strong>: Path traversal protection, response
-length limits, command injection prevention</li>
+<li><strong>Thread-safe agent pool</strong> with
+<code>Acquire(ctx, requirements)</code> and capability matching (vision
+/ streaming / tool-use / token budget)</li>
+<li><strong>Circuit breaker</strong>: per-agent health monitoring (3
+consecutive failures → unhealthy)</li>
+<li><strong>Hybrid communication</strong>: pipe (real-time JSON-lines
+via <code>protocol.PipeTransport</code>) + file (inbox / outbox / shared
+directories via <code>protocol.FileTransport</code>)</li>
+<li><strong>Response parser</strong>: structured extraction of actions,
+issues, and JSON from raw LLM output
+(<code>parser.DefaultParser</code>)</li>
+<li><strong>Security</strong>: path-traversal protection
+(<code>ErrPathTraversal</code>), 1 MiB response length cap
+(<code>MaxResponseLength</code>), command-injection prevention</li>
+<li><strong>CONST-046 i18n abstraction</strong>:
+<code>i18n.Translator</code> interface + <code>NoopTranslator</code>
+default + <code>SetPkgTranslator</code> injection point for consuming
+projects</li>
 </ul>
 <h2 id="quick-start">Quick Start</h2>
 <div class="sourceCode" id="cb1"><pre
-class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Build</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">go</span> build ./...</span>
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Build the orchestrator binary</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">go</span> build ./cmd/orchestrator</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Test</span></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="ex">go</span> test ./... <span class="at">-race</span> <span class="at">-count</span><span class="op">=</span>1</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Race-detector unit + integration suite</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="ex">go</span> test <span class="at">-race</span> <span class="at">-count</span><span class="op">=</span>1 ./...</span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Run (standalone)</span></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="ex">go</span> run cmd/orchestrator/main.go</span></code></pre></div>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Round-275 Challenge runner (5 locales, 29 invariants, real disk I/O)</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="ex">go</span> run ./challenges/runner/</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Wrapper-gated Challenge (anti-bluff paired mutation)</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> challenges/llmorchestrator_describe_challenge.sh normal   <span class="co"># exits 0 on green</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> challenges/llmorchestrator_describe_challenge.sh mutate   <span class="co"># exits 99 on mutation-detected</span></span></code></pre></div>
 <h2 id="architecture">Architecture</h2>
 <pre><code>LLMOrchestrator/
-├── cmd/orchestrator/   # Standalone CLI entry point
+├── cmd/orchestrator/         # Standalone CLI entry point
 ├── pkg/
-│   ├── agent/          # Agent interface, AgentPool, HealthMonitor, CircuitBreaker
-│   ├── adapter/        # BaseAdapter + 5 CLI adapters
-│   ├── protocol/       # PipeTransport (JSON-lines), FileTransport (inbox/outbox)
-│   ├── parser/         # ResponseParser, action/issue extraction
-│   └── config/         # .env loading, agent path resolution
-├── Upstreams/          # Multi-remote sync scripts
-└── docs/</code></pre>
+│   ├── agent/                # Agent, AgentPool, SimplePool, HealthMonitor,
+│   │                         # CircuitBreaker, MultiPool, per-CLI agents
+│   ├── adapter/              # BaseAdapter + 5 CLI adapters
+│   ├── protocol/             # PipeTransport (JSON-lines), FileTransport
+│   │                         # (inbox/outbox/shared), PipeMessage,
+│   │                         # FileMessage, validatePath
+│   ├── parser/               # ResponseParser, JSON/action/issue extraction
+│   ├── config/               # .env loading, agent path resolution
+│   └── i18n/                 # Translator interface + NoopTranslator default
+├── challenges/
+│   ├── runner/               # round-275 in-process Challenge runner (Go)
+│   ├── fixtures/             # 5 locale fixtures (en, sr, ja, es, de)
+│   ├── llmorchestrator_describe_challenge.sh   # round-275 wrapper +
+│   │                                           # paired mutation
+│   └── scripts/              # chaos / ddos / scaling / stress / ui / ux
+│                             # supplementary Challenges
+├── docs/
+│   ├── ARCHITECTURE.md       # design narrative
+│   ├── architecture.md       # lowercase alias (CONST-052 transition)
+│   ├── HOST_POWER_MANAGEMENT.md   # CONST-033 hard-ban anchor
+│   └── test-coverage.md      # round-275 symbol→test ledger
+├── Upstreams/                # Multi-remote sync scripts (CONST-056 transition target)
+├── README.md  USER_GUIDE.md  ARCHITECTURE.md  API_REFERENCE.md
+├── CONSTITUTION.md  CLAUDE.md  AGENTS.md      # governance (cascaded)
+└── go.mod                    # digital.vasic.llmorchestrator (go 1.25)</code></pre>
 <h2 id="configuration">Configuration</h2>
-<p>Copy <code>.env.example</code> to <code>.env</code> and configure
-agent paths and API keys. See <a href="USER_GUIDE.md">USER_GUIDE.md</a>
-for details.</p>
+<p>Copy <code>.env.example</code> to <code>.env</code> (mode 0600,
+gitignored per CONST-053 + CONST-042) and configure agent paths and API
+keys. See <code>USER_GUIDE.md</code> for the per-adapter parameter
+catalog.</p>
 <h2 id="testing">Testing</h2>
 <div class="sourceCode" id="cb3"><pre
-class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> test      <span class="co"># Run all tests with race detector</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> fuzz      <span class="co"># Run fuzz tests</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> cover     <span class="co"># Generate coverage report</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> check     <span class="co"># Run vet + tests</span></span></code></pre></div>
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> test          <span class="co"># unit + integration with race detector</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> fuzz          <span class="co"># parser fuzz suite</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> cover         <span class="co"># coverage report</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> check         <span class="co"># vet + tests</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Round-275 Challenge (anti-bluff gate)</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> challenges/llmorchestrator_describe_challenge.sh normal</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> challenges/llmorchestrator_describe_challenge.sh mutate</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Anti-bluff smoke check (must always pass)</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="fu">grep</span> <span class="at">-rn</span> <span class="st">&quot;simulated\|for now\|TODO implement\|placeholder&quot;</span> <span class="dt">\</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>    pkg cmd <span class="kw">&amp;&amp;</span> <span class="bu">echo</span> <span class="st">&quot;BLUFF FOUND&quot;</span> <span class="kw">||</span> <span class="bu">echo</span> <span class="st">&quot;clean&quot;</span></span></code></pre></div>
+<p>Per CONST-050(B), this module ships unit, integration, security
+(<code>parser_security_test.go</code>), fuzz
+(<code>parser_fuzz_test.go</code>), chaos / DDoS / scaling / stress / UI
+/ UX challenges, and the round-275 deep-doc Challenge. The symbol→test
+ledger at <code>docs/test-coverage.md</code> enumerates every exported
+symbol's coverage row.</p>
+<h2 id="round-275-deliverable-summary">Round-275 deliverable
+summary</h2>
+<table>
+<thead>
+<tr>
+<th>Artefact</th>
+<th>Status</th>
+<th>Evidence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>README.md</code> deep-doc with anti-bluff guarantees</td>
+<td>LANDED</td>
+<td>this file</td>
+</tr>
+<tr>
+<td><code>docs/test-coverage.md</code> symbol→test ledger</td>
+<td>LANDED</td>
+<td>symbol-to-test ledger with 6-invariant floor</td>
+</tr>
+<tr>
+<td><code>challenges/runner/main.go</code> real-system exerciser</td>
+<td>LANDED</td>
+<td>29 PASS lines across 5 locales</td>
+</tr>
+<tr>
+<td><code>challenges/llmorchestrator_describe_challenge.sh</code></td>
+<td>LANDED</td>
+<td>normal=exit 0; mutate=exit 99</td>
+</tr>
+<tr>
+<td><code>challenges/fixtures/{en,sr,ja,es,de}.yaml</code></td>
+<td>LANDED</td>
+<td>5-locale bilingual fixture set</td>
+</tr>
+<tr>
+<td><code>.gitignore</code> CONST-053 enrichment</td>
+<td>LANDED</td>
+<td>covers go-test, coverage, IDE, OS, secrets, build</td>
+</tr>
+</tbody>
+</table>
 <h2 id="license">License</h2>
-<p>Apache License 2.0 - see <a href="LICENSE">LICENSE</a>.</p>
+<p>Apache License 2.0 — see <a href="LICENSE">LICENSE</a>.</p>
 </body>
 </html>
