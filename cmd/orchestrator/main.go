@@ -11,16 +11,48 @@ import (
 	"os/signal"
 	"syscall"
 
-	"digital.vasic.llmorchestrator/pkg/agent"
 	"digital.vasic.llmorchestrator/pkg/adapter"
+	"digital.vasic.llmorchestrator/pkg/agent"
 	"digital.vasic.llmorchestrator/pkg/config"
+	"digital.vasic.llmorchestrator/pkg/i18n"
 )
 
 const version = "0.1.0"
 
+// initI18n wires the embedded locale bundles into the global
+// Translator so every user-facing string below resolves through the
+// CONST-046 seam. The active locale honours LLMORCHESTRATOR_LOCALE /
+// LANG; an unknown locale degrades gracefully to the English bundle.
+func initI18n() {
+	bt, err := i18n.NewBundleTranslator("en")
+	if err != nil {
+		// Fall back to the loud-echo NoopTranslator (set by default);
+		// the CLI stays usable, just untranslated.
+		return
+	}
+	if loc := resolveLocale(); loc != "" {
+		bt = bt.WithLocale(loc)
+	}
+	i18n.SetGlobal(bt)
+}
+
+// resolveLocale derives a two-letter locale from the environment.
+func resolveLocale() string {
+	for _, key := range []string{"LLMORCHESTRATOR_LOCALE", "LC_ALL", "LANG"} {
+		if v := os.Getenv(key); v != "" {
+			if len(v) >= 2 {
+				return v[:2]
+			}
+		}
+	}
+	return ""
+}
+
 func main() {
+	initI18n()
+
 	if len(os.Args) > 1 && os.Args[1] == "version" {
-		fmt.Printf("LLMOrchestrator v%s\n", version)
+		fmt.Println(i18n.Trf("cli.version_line", map[string]any{"version": version}))
 		os.Exit(0)
 	}
 
@@ -30,13 +62,13 @@ func main() {
 		var err error
 		cfg, err = config.LoadFromEnv(envFile)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
+			fmt.Fprintln(os.Stderr, i18n.Trf("cli.error_loading_config", map[string]any{"error": err}))
 			os.Exit(1)
 		}
 	}
 
 	if err := cfg.Validate(); err != nil {
-		fmt.Fprintf(os.Stderr, "Invalid config: %v\n", err)
+		fmt.Fprintln(os.Stderr, i18n.Trf("cli.error_invalid_config", map[string]any{"error": err}))
 		os.Exit(1)
 	}
 
@@ -47,7 +79,8 @@ func main() {
 	for _, name := range cfg.EnabledAgents {
 		path, err := cfg.AgentBinaryPath(name)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: skipping agent %s: %v\n", name, err)
+			fmt.Fprintln(os.Stderr, i18n.Trf("cli.warning_skipping_agent",
+				map[string]any{"agent": name, "error": err}))
 			continue
 		}
 
@@ -71,18 +104,21 @@ func main() {
 		case "qwen-code":
 			a = adapter.NewQwenCodeAgent(name+"-0", adapterCfg)
 		default:
-			fmt.Fprintf(os.Stderr, "Unknown agent: %s\n", name)
+			fmt.Fprintln(os.Stderr, i18n.Trf("cli.error_unknown_agent", map[string]any{"agent": name}))
 			continue
 		}
 
 		if err := pool.Register(a); err != nil {
-			fmt.Fprintf(os.Stderr, "Error registering agent %s: %v\n", name, err)
+			fmt.Fprintln(os.Stderr, i18n.Trf("cli.error_registering_agent",
+				map[string]any{"agent": name, "error": err}))
 			continue
 		}
-		fmt.Printf("Registered agent: %s (%s)\n", a.Name(), a.ID())
+		fmt.Println(i18n.Trf("cli.registered_agent",
+			map[string]any{"name": a.Name(), "id": a.ID()}))
 	}
 
-	fmt.Printf("LLMOrchestrator v%s ready with %d agents\n", version, len(pool.Available()))
+	fmt.Println(i18n.Trf("cli.ready",
+		map[string]any{"version": version, "count": len(pool.Available())}))
 
 	// Wait for interrupt.
 	ctx, cancel := context.WithCancel(context.Background())
@@ -92,12 +128,12 @@ func main() {
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
 	<-sigCh
-	fmt.Println("\nShutting down...")
+	fmt.Println("\n" + i18n.Tr("cli.shutting_down"))
 
 	if err := pool.Shutdown(ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "Shutdown error: %v\n", err)
+		fmt.Fprintln(os.Stderr, i18n.Trf("cli.error_shutdown", map[string]any{"error": err}))
 		os.Exit(1)
 	}
 
-	fmt.Println("Shutdown complete.")
+	fmt.Println(i18n.Tr("cli.shutdown_complete"))
 }

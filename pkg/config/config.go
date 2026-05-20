@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"digital.vasic.llmorchestrator/pkg/i18n"
 )
 
 var (
@@ -104,13 +106,13 @@ func LoadFromEnvironment() *Config {
 func (c *Config) AgentBinaryPath(name string) (string, error) {
 	path, ok := c.AgentPaths[name]
 	if !ok {
-		return "", fmt.Errorf("no path configured for agent: %s", name)
+		return "", errors.New(i18n.Trf("config.no_path_for_agent", map[string]any{"agent": name}))
 	}
 
 	// If it's an absolute path, check it exists.
 	if filepath.IsAbs(path) {
 		if _, err := os.Stat(path); err != nil {
-			return "", fmt.Errorf("agent binary not found: %s", path)
+			return "", errors.New(i18n.Trf("config.agent_binary_not_found", map[string]any{"path": path}))
 		}
 		return path, nil
 	}
@@ -134,19 +136,22 @@ func (c *Config) SessionDir(sessionID string) string {
 	return strings.ReplaceAll(c.SessionDirTemplate, "{id}", sessionID)
 }
 
-// Validate checks the config for obvious errors.
+// Validate checks the config for obvious errors. The human-readable
+// detail is resolved through the i18n seam (CONST-046) while the
+// ErrInvalidConfig sentinel is preserved via %w so callers relying on
+// errors.Is keep working regardless of the active locale.
 func (c *Config) Validate() error {
 	if c.AgentTimeout <= 0 {
-		return fmt.Errorf("%w: agent timeout must be positive", ErrInvalidConfig)
+		return fmt.Errorf("%w: %s", ErrInvalidConfig, i18n.Tr("config.timeout_must_be_positive"))
 	}
 	if c.MaxRetries < 0 {
-		return fmt.Errorf("%w: max retries must be non-negative", ErrInvalidConfig)
+		return fmt.Errorf("%w: %s", ErrInvalidConfig, i18n.Tr("config.max_retries_non_negative"))
 	}
 	if c.PoolSize <= 0 {
-		return fmt.Errorf("%w: pool size must be positive", ErrInvalidConfig)
+		return fmt.Errorf("%w: %s", ErrInvalidConfig, i18n.Tr("config.pool_size_must_be_positive"))
 	}
 	if len(c.EnabledAgents) == 0 {
-		return fmt.Errorf("%w: at least one agent must be enabled", ErrInvalidConfig)
+		return fmt.Errorf("%w: %s", ErrInvalidConfig, i18n.Tr("config.at_least_one_agent"))
 	}
 	return nil
 }
