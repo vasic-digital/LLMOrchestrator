@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # CONST-046 active bundle — English source-of-truth message strings
 # for digital.vasic.llmorchestrator user-facing call sites.
 #
@@ -107,3 +108,33 @@ llmorchestrator_cli_shutdown_error:
 
 llmorchestrator_cli_shutdown_complete:
   other: "Shutdown complete."
+=======
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Vasic Digital. All rights reserved.
+#
+# LLMOrchestrator English locale bundle (CONST-046 round-383).
+# Placeholders use {brace} syntax resolved by BundleTranslator.
+# Additional locales: copy this file to active.<lang>.yaml and
+# translate the values; keys MUST stay identical.
+
+# --- CLI lifecycle (cmd/orchestrator) ---------------------------------
+cli.version_line: "LLMOrchestrator v{version}"
+cli.error_loading_config: "Error loading config: {error}"
+cli.error_invalid_config: "Invalid config: {error}"
+cli.warning_skipping_agent: "Warning: skipping agent {agent}: {error}"
+cli.error_unknown_agent: "Unknown agent: {agent}"
+cli.error_registering_agent: "Error registering agent {agent}: {error}"
+cli.registered_agent: "Registered agent: {name} ({id})"
+cli.ready: "LLMOrchestrator v{version} ready with {count} agents"
+cli.shutting_down: "Shutting down..."
+cli.error_shutdown: "Shutdown error: {error}"
+cli.shutdown_complete: "Shutdown complete."
+
+# --- Configuration validation (pkg/config) ----------------------------
+config.no_path_for_agent: "no path configured for agent: {agent}"
+config.agent_binary_not_found: "agent binary not found: {path}"
+config.timeout_must_be_positive: "agent timeout must be positive"
+config.max_retries_non_negative: "max retries must be non-negative"
+config.pool_size_must_be_positive: "pool size must be positive"
+config.at_least_one_agent: "at least one agent must be enabled"
+>>>>>>> 4350384757760aabcf8df00be609fff98e9f1805

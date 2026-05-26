@@ -1,8 +1,17 @@
+<<<<<<< HEAD
 // Command runner is the LLMOrchestrator round-275 Challenge runner.
+=======
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Vasic Digital. All rights reserved.
+
+// Command runner is the LLMOrchestrator round-291 Challenge runner
+// (vasic-digital twin of HelixDevelopment/LLMOrchestrator round-275).
+>>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
 //
 // It exercises the real parser.DefaultParser, the real
 // protocol.PipeMessage JSON marshal/unmarshal, the real
 // protocol.FileTransport inbox/outbox round-trip, and the real
+<<<<<<< HEAD
 // i18n.NoopTranslator across five locale fixtures. Every PASS line
 // is backed by a runtime invariant — never a metadata-only check
 // (CONST-035 / Article XI §11.9).
@@ -14,10 +23,27 @@
 //     Action whose Type matches expect_action_type AND Target
 //     matches expect_action_target. A silent miss would let a
 //     stub-parser ship green.
+=======
+// agent.NewPool() Register/Acquire/Release/Shutdown contract — across
+// five locale fixtures. Every PASS line is backed by a runtime
+// invariant — never a metadata-only check (CONST-035 / Article XI
+// §11.9 / §11.4.5 anti-bluff covenant).
+//
+// Anti-bluff invariants enforced (every PASS proves the feature
+// works for the end-user, not that "no error was returned"):
+//
+//  1. parser.NewParser() returns a non-nil ResponseParser that
+//     actually decodes each fixture's prompt_json and surfaces an
+//     Action whose Type matches expect_action_type AND whose Target
+//     contains expect_action_target verbatim. A silent miss would
+//     let a stub-parser ship green; the matched-action assertion
+//     mechanically rejects that pattern.
+>>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
 //  2. parser.Parse rejects the documented empty-input contract
 //     (ErrEmptyInput) — defensive boundary preserved across rounds.
 //  3. protocol.PipeMessage round-trips through encoding/json: the
 //     marshalled bytes unmarshal to a struct whose Content equals
+<<<<<<< HEAD
 //     expect_pipe_content. Encoding drift (e.g. field tag changes)
 //     would fail here, not silently corrupt the wire format.
 //  4. protocol.FileTransport.WriteToInbox + ReadFromInbox round-trip
@@ -27,6 +53,23 @@
 //  5. i18n.NoopTranslator.T returns the message id verbatim (the
 //     anti-bluff contract documented in translator.go — missing
 //     translations surface as the key, not as silent empty strings).
+=======
+//     expect_pipe_content AND whose Type equals MessageTypePrompt
+//     AND whose RequestID matches the synthesised id. Encoding
+//     drift (e.g. field tag changes) fails this gate instead of
+//     silently corrupting the wire format.
+//  4. protocol.FileTransport.WriteToInbox + ReadFromInbox actually
+//     round-trip a FileMessage through a real temp directory whose
+//     ID equals expect_inbox_id AND whose Content equals
+//     expect_pipe_content. Real os.MkdirTemp + os.WriteFile +
+//     os.ReadDir — not an in-memory shim.
+//  5. agent.NewPool() Register/Acquire/Release contract holds end-
+//     to-end: a real opencode adapter registers, Acquire returns
+//     the same instance back, Release frees it for re-acquisition,
+//     and a second Acquire after Release succeeds. A pool that
+//     dropped Register-then-Acquire on the floor would fail this
+//     gate before tests masking the regression could ship green.
+>>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
 //
 // Mutation hook: when env LLMORCH_MUTATE_RUNNER=1 is set, the
 // runner inverts invariant (2) (treats a successful empty-input
@@ -59,22 +102,40 @@ import (
 	"strings"
 	"time"
 
+<<<<<<< HEAD
 	"digital.vasic.llmorchestrator/pkg/i18n"
+=======
+	"digital.vasic.llmorchestrator/pkg/adapter"
+	"digital.vasic.llmorchestrator/pkg/agent"
+>>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
 	"digital.vasic.llmorchestrator/pkg/parser"
 	"digital.vasic.llmorchestrator/pkg/protocol"
 )
 
+<<<<<<< HEAD
 // fixture is a 6-field projection of challenges/fixtures/<locale>.yaml.
 // Parsed in-process so the runner stays dependency-free beyond what
 // the module already depends on (CONST-051(B): no new transitive
 // deps creeping into a reusable submodule).
+=======
+// fixture is the 6-field projection of challenges/fixtures/<locale>.yaml.
+// Parsed in-process so the runner stays dependency-free beyond what
+// the module already depends on (CONST-051(B): no new transitive deps
+// creeping into a reusable submodule). yaml.v3 is already in the
+// module via testify; we still hand-parse to keep the runner's
+// import graph tight and reviewable.
+>>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
 type fixture struct {
 	locale             string
 	promptJSON         string
 	expectActionType   string
 	expectActionTarget string
 	expectPipeContent  string
+<<<<<<< HEAD
 	expectMessageID    string
+=======
+	expectInboxID      string
+>>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
 }
 
 func main() {
@@ -84,7 +145,11 @@ func main() {
 }
 
 func run(out io.Writer) int {
+<<<<<<< HEAD
 	fmt.Fprintln(out, "=== LLMOrchestrator Challenge Runner (round-275) ===")
+=======
+	fmt.Fprintln(out, "=== LLMOrchestrator Challenge Runner (round-291, vasic-digital) ===")
+>>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
 
 	fixDir := os.Getenv("LLMORCH_FIXTURES_DIR")
 	if fixDir == "" {
@@ -115,11 +180,19 @@ func run(out io.Writer) int {
 	step := func(name string, ok bool, detail string) {
 		if ok {
 			pass++
+<<<<<<< HEAD
 			fmt.Fprintf(out, "  PASS  %-48s  %s\n", name, detail)
 			return
 		}
 		fail++
 		fmt.Fprintf(out, "  FAIL  %-48s  %s\n", name, detail)
+=======
+			fmt.Fprintf(out, "  PASS  %-52s  %s\n", name, detail)
+			return
+		}
+		fail++
+		fmt.Fprintf(out, "  FAIL  %-52s  %s\n", name, detail)
+>>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
 	}
 
 	// Invariant 1+2: parser construction + per-fixture decode +
@@ -149,7 +222,11 @@ func run(out io.Writer) int {
 				fmt.Sprintf("err=%v", err))
 			continue
 		}
+<<<<<<< HEAD
 		// Find action matching expected type+target.
+=======
+		// Find action matching expected type + target verbatim.
+>>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
 		matched := false
 		for _, a := range parsed.Actions {
 			if a.Type == f.expectActionType &&
@@ -172,7 +249,11 @@ func run(out io.Writer) int {
 			Type:      protocol.MessageTypePrompt,
 			Content:   f.expectPipeContent,
 			Timestamp: time.Now().UTC(),
+<<<<<<< HEAD
 			RequestID: "round-275-" + f.locale,
+=======
+			RequestID: "round-291-" + f.locale,
+>>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
 		}
 		raw, err := json.Marshal(msg)
 		if err != nil {
@@ -189,13 +270,21 @@ func run(out io.Writer) int {
 		step("protocol.PipeMessage.roundtrip."+f.locale,
 			back.Content == f.expectPipeContent &&
 				back.Type == protocol.MessageTypePrompt &&
+<<<<<<< HEAD
 				back.RequestID == "round-275-"+f.locale,
+=======
+				back.RequestID == "round-291-"+f.locale,
+>>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
 			fmt.Sprintf("content=%q type=%s req=%s",
 				back.Content, back.Type, back.RequestID))
 	}
 
 	// Invariant 4: FileTransport inbox round-trip (real disk I/O).
+<<<<<<< HEAD
 	tmp, err := os.MkdirTemp("", "llmorch-round275-*")
+=======
+	tmp, err := os.MkdirTemp("", "llmorch-round291-*")
+>>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
 	if err != nil {
 		step("protocol.FileTransport.mkdir_tmp",
 			false, fmt.Sprintf("err=%v", err))
@@ -210,7 +299,11 @@ func run(out io.Writer) int {
 				true, "created at "+tmp)
 			for _, f := range fixtures {
 				fm := protocol.FileMessage{
+<<<<<<< HEAD
 					ID:        "round-275-" + f.locale,
+=======
+					ID:        f.expectInboxID,
+>>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
 					Type:      "instruction",
 					Content:   f.expectPipeContent,
 					CreatedAt: time.Now().UTC(),
@@ -228,7 +321,11 @@ func run(out io.Writer) int {
 				}
 				found := false
 				for _, m := range msgs {
+<<<<<<< HEAD
 					if m.ID == fm.ID &&
+=======
+					if m.ID == f.expectInboxID &&
+>>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
 						m.Content == f.expectPipeContent {
 						found = true
 						break
@@ -247,6 +344,7 @@ func run(out io.Writer) int {
 		}
 	}
 
+<<<<<<< HEAD
 	// Invariant 5: NoopTranslator returns message id verbatim — the
 	// documented anti-bluff contract (translator.go).
 	tr := i18n.NoopTranslator{}
@@ -277,6 +375,69 @@ func run(out io.Writer) int {
 		errPkg == nil && gotPkg == "round_275_pkg_probe",
 		fmt.Sprintf("got=%q err=%v", gotPkg, errPkg))
 
+=======
+	// Invariant 5: agent.NewPool() Register/Acquire/Release contract.
+	// We use a real opencode adapter — but the adapter's binary need
+	// not exist; Register and capability-matching exercise the pool's
+	// API independent of process Start, which keeps the Challenge
+	// runnable without external binaries while still proving the
+	// pool actually tracks state.
+	pool := agent.NewPool()
+	defer func() {
+		ctx, cancel := context.WithTimeout(
+			context.Background(), 2*time.Second)
+		defer cancel()
+		_ = pool.Shutdown(ctx)
+	}()
+	probe := adapter.NewOpenCodeAgent("round-291-probe",
+		adapter.AdapterConfig{
+			BinaryPath: "/usr/bin/true",
+			Timeout:    1 * time.Second,
+			MaxRetries: 0,
+			OutputDir:  tmp,
+		})
+	if err := pool.Register(probe); err != nil {
+		step("agent.Pool.Register",
+			false, fmt.Sprintf("err=%v", err))
+	} else {
+		step("agent.Pool.Register",
+			true, "probe="+probe.ID())
+
+		acquireCtx, acqCancel := context.WithTimeout(
+			context.Background(), 1*time.Second)
+		a, err := pool.Acquire(acquireCtx, agent.AgentRequirements{})
+		acqCancel()
+		step("agent.Pool.Acquire",
+			err == nil && a != nil && a.ID() == probe.ID(),
+			fmt.Sprintf("err=%v acquired=%v", err, a != nil))
+
+		// Acquire-while-busy MUST block; verify by deadlined
+		// second Acquire returning context error.
+		busyCtx, busyCancel := context.WithTimeout(
+			context.Background(), 200*time.Millisecond)
+		_, busyErr := pool.Acquire(busyCtx,
+			agent.AgentRequirements{})
+		busyCancel()
+		step("agent.Pool.Acquire.blocks_while_busy",
+			busyErr != nil,
+			fmt.Sprintf("err=%v (expected context deadline)",
+				busyErr))
+
+		pool.Release(probe)
+		reAcqCtx, reAcqCancel := context.WithTimeout(
+			context.Background(), 1*time.Second)
+		again, err := pool.Acquire(reAcqCtx,
+			agent.AgentRequirements{})
+		reAcqCancel()
+		step("agent.Pool.Release.reacquire",
+			err == nil && again != nil && again.ID() == probe.ID(),
+			fmt.Sprintf("err=%v reacquired=%v", err, again != nil))
+		if again != nil {
+			pool.Release(again)
+		}
+	}
+
+>>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
 	fmt.Fprintf(out, "\n=== Summary: PASS=%d FAIL=%d ===\n",
 		pass, fail)
 	if fail > 0 {
@@ -348,8 +509,13 @@ func parseFixture(text string) fixture {
 			f.expectActionTarget = v
 		case "expect_pipe_content":
 			f.expectPipeContent = v
+<<<<<<< HEAD
 		case "expect_message_id":
 			f.expectMessageID = v
+=======
+		case "expect_inbox_id":
+			f.expectInboxID = v
+>>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
 		}
 	}
 	return f

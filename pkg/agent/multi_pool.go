@@ -282,6 +282,7 @@ type PoolConfig struct {
 // (no-fakes-beyond-unit-tests), Article XI §11.9 (forensic anchor).
 var ErrProviderPoolNotImplemented = fmt.Errorf("llmorchestrator: provider pool factory invoked with nil PoolConfig — no provider configuration present (round-60 §11.4 upgraded factories to return real SimpleAgentPool instances for non-nil configs; nil-config still surfaces this round-28 sentinel)")
 
+<<<<<<< HEAD
 // NewOpenCodePool returns a real *SimpleAgentPool wired to
 // OpenCodeClientBuilder when cfg is non-nil. The pool itself is fully
 // functional; its first Acquire fails loudly with ErrOpenCodeClientNotWired
@@ -353,6 +354,133 @@ func poolSize(cfg *PoolConfig) int {
 		return 1
 	}
 	return cfg.Size
+=======
+func NewClaudeCodePool(cfg *PoolConfig) AgentPool {
+	return NewMockPool("claude-code", cfg.Size)
+}
+
+// NewGeminiPool / NewJuniePool / NewQwenCodePool previously returned
+// NewMockPool which produced a pool containing `size` nil agents.
+// Any caller calling Acquire then using the returned Agent would
+// dereference nil and panic. §11.4 CRITICAL bluff: looked
+// production-ready but guaranteed to crash on first real request.
+//
+// Fix: return a stub-rejecting pool that errors loudly via
+// ErrPoolNotWired on Acquire so the missing implementation surfaces
+// at the assertion boundary instead of nil-panic at the call site.
+// Real per-provider pools must wire adapter-subprocess launchers
+// from pkg/adapter/ (Gemini-cli, Junie, Qwen-code).
+func NewGeminiPool(cfg *PoolConfig) AgentPool {
+	return newStubRejectingPool("gemini")
+}
+
+func NewJuniePool(cfg *PoolConfig) AgentPool {
+	return newStubRejectingPool("junie")
+}
+
+func NewQwenCodePool(cfg *PoolConfig) AgentPool {
+	return newStubRejectingPool("qwen-code")
+}
+
+// ErrPoolNotWired is returned by stubRejectingPool.Acquire when no
+// real agent has been Register'd into the pool. Previous MockPool
+// returned nil-Agent values guaranteeing nil-pointer panic in
+// callers — now surfaces explicitly.
+var ErrPoolNotWired = fmt.Errorf("agent pool: provider implementation not wired (Gemini/Junie/Qwen-Code pools require adapter-subprocess launcher from pkg/adapter/); the previous MockPool with nil-agent slots was a §11.4 PASS-bluff that guaranteed nil-pointer panic in callers and is now removed")
+
+// MockPool / NewMockPool are now an alias for stubRejectingPool —
+// the type name is retained for back-compat but the implementation
+// no longer produces nil-agent slots. Callers that Register a real
+// agent get a working pool; callers that Acquire without Register
+// get ErrPoolNotWired (honest gap, not nil-panic).
+type MockPool = stubRejectingPool
+
+func NewMockPool(name string, size int) *MockPool {
+	_ = size // pool size is irrelevant when no real agents are wired
+	return newStubRejectingPool(name)
+}
+
+type stubRejectingPool struct {
+	name      string
+	agents    []Agent
+	available []Agent
+	mu        sync.Mutex
+}
+
+func newStubRejectingPool(name string) *stubRejectingPool {
+	return &stubRejectingPool{name: name}
+}
+
+func (p *stubRejectingPool) Register(agent Agent) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if agent == nil {
+		return fmt.Errorf("stubRejectingPool[%s].Register: refusing nil agent (would reintroduce the prior MockPool nil-panic bluff)", p.name)
+	}
+	p.agents = append(p.agents, agent)
+	p.available = append(p.available, agent)
+	return nil
+}
+
+func (p *stubRejectingPool) Acquire(ctx context.Context, req AgentRequirements) (Agent, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if len(p.available) == 0 {
+		return nil, fmt.Errorf("stubRejectingPool[%s].Acquire: %w", p.name, ErrPoolNotWired)
+	}
+	agent := p.available[0]
+	p.available = p.available[1:]
+	return agent, nil
+}
+
+func (p *stubRejectingPool) Release(agent Agent) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if agent != nil {
+		p.available = append(p.available, agent)
+	}
+}
+
+func (p *stubRejectingPool) Available() []Agent {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	result := make([]Agent, len(p.available))
+	copy(result, p.available)
+	return result
+}
+
+func (p *stubRejectingPool) HealthCheck(ctx context.Context) []HealthStatus {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if len(p.agents) == 0 {
+		// Honest sentinel: pool is not wired. Previously returned
+		// empty []HealthStatus which silently masked the unwired
+		// state — monitoring tools indistinguishable from "all
+		// healthy, no instances".
+		return []HealthStatus{{
+			AgentID:   fmt.Sprintf("%s-stub-pool", p.name),
+			AgentName: fmt.Sprintf("%s (stub-not-wired)", p.name),
+			Healthy:   false,
+			Error:     ErrPoolNotWired,
+			CheckedAt: time.Now(),
+		}}
+	}
+	// Real agents registered — defer to per-agent health (caller may
+	// override via concrete AgentPool implementation; default returns
+	// "registered count" as the only observable state).
+	statuses := make([]HealthStatus, 0, len(p.agents))
+	for i, ag := range p.agents {
+		statuses = append(statuses, HealthStatus{
+			AgentID: fmt.Sprintf("%s-%d", p.name, i),
+			Healthy: ag != nil,
+		})
+	}
+	return statuses
+}
+
+func (p *stubRejectingPool) Shutdown(ctx context.Context) error {
+	return nil
+>>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
 }
 
 var (

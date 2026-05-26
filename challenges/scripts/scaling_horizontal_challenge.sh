@@ -3,7 +3,11 @@
 # LLMOrchestrator per CONST-035 + CONST-050(B). Cascade per CONST-051(A).
 
 set -uo pipefail
+<<<<<<< HEAD
 REPLICAS="${LLMORCHESTRATOR_SCALING_REPLICA_URLS:-}"
+=======
+REPLICAS="${LLMORCHESTRATOR_VD_SCALING_REPLICA_URLS:-}"
+>>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
 REQS="${SCALING_REQS_PER_REPLICA:-50}"
 CONC="${SCALING_CONCURRENCY:-10}"
 MIN_PCT="${SCALING_MIN_PASS_PCT:-95}"
@@ -12,7 +16,11 @@ echo "=== LLMOrchestrator Scaling Challenge ==="
 echo "  replicas=$REPLICAS reqs=$REQS conc=$CONC pass≥${MIN_PCT}%"
 
 if [[ -z "$REPLICAS" ]]; then
+<<<<<<< HEAD
     echo "[1/6] SKIP: LLMORCHESTRATOR_SCALING_REPLICA_URLS unset — SKIP-OK: #env-single-replica"
+=======
+    echo "[1/6] SKIP: LLMORCHESTRATOR_VD_SCALING_REPLICA_URLS unset — SKIP-OK: #env-single-replica"
+>>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
     echo "=== LLMOrchestrator Scaling Challenge: PASSED (SKIP-OK) ==="
     exit 0
 fi

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # LLMOrchestrator round-275 challenge fixture — Spanish (es).
 locale: es
 prompt_json: '{"actions":[{"type":"navigate","target":"pantalla_perfil","confidence":0.82}]}'
@@ -5,3 +6,12 @@ expect_action_type: navigate
 expect_action_target: pantalla_perfil
 expect_pipe_content: "abrir la pantalla del perfil"
 expect_message_id: llmorch_intent_navigate_profile
+=======
+# LLMOrchestrator round-291 anti-bluff fixture — locale: es
+locale: es
+prompt_json: '{"actions":[{"type":"scroll","target":"resultados_lista","confidence":0.77}]}'
+expect_action_type: scroll
+expect_action_target: resultados_lista
+expect_pipe_content: round-291 es pipe payload
+expect_inbox_id: round-291-es
+>>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
