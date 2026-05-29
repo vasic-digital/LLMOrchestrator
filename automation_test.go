@@ -226,14 +226,19 @@ func TestAutomation_MakefileTargets(t *testing.T) {
 
 func TestAutomation_UpstreamsScripts(t *testing.T) {
 	root := findProjectRoot(t)
-	upstreamsDir := filepath.Join(root, "Upstreams")
-
-	info, err := os.Stat(upstreamsDir)
-	if err != nil {
-		t.Fatalf("Upstreams directory not found: %v", err)
+	// CONST-052 renamed Upstreams/ -> upstreams/ (commit 4350384). Accept
+	// either during the transition — lowercase preferred, legacy capital
+	// tolerated — matching install_upstreams' documented dual-name support.
+	var upstreamsDir string
+	for _, name := range []string{"upstreams", "Upstreams"} {
+		cand := filepath.Join(root, name)
+		if info, err := os.Stat(cand); err == nil && info.IsDir() {
+			upstreamsDir = cand
+			break
+		}
 	}
-	if !info.IsDir() {
-		t.Fatal("Upstreams is not a directory")
+	if upstreamsDir == "" {
+		t.Fatalf("upstreams (or legacy Upstreams) directory not found under %s", root)
 	}
 }
 

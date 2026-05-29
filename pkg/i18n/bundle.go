@@ -101,6 +101,24 @@ func (bt *BundleTranslator) T(_ context.Context, messageID string, templateData 
 	return interpolate(tmpl, templateData), nil
 }
 
+// TPlural resolves messageID with count exposed to the template as the "count"
+// placeholder. This bundle carries no CLDR plural-form catalog, so it does NOT
+// select distinct singular/plural message variants — it interpolates count
+// into the single message body. (Honest per §11.9: no plural-form selection is
+// claimed; T's loud-echo unknown-id behaviour is preserved.) Satisfies the
+// i18n.Translator interface so a *BundleTranslator can be installed via
+// SetGlobal / SetPkgTranslator.
+func (bt *BundleTranslator) TPlural(ctx context.Context, messageID string, count int, templateData map[string]any) (string, error) {
+	merged := make(map[string]any, len(templateData)+1)
+	for k, v := range templateData {
+		merged[k] = v
+	}
+	if _, exists := merged["count"]; !exists {
+		merged["count"] = count
+	}
+	return bt.T(ctx, messageID, merged)
+}
+
 func (bt *BundleTranslator) lookup(locale, id string) (string, bool) {
 	m, ok := bt.messages[locale]
 	if !ok {
@@ -137,8 +155,8 @@ func interpolate(tmpl string, data map[string]any) string {
 }
 
 var (
-	globalMu     sync.RWMutex
-	globalTrans  Translator = NoopTranslator{}
+	globalMu    sync.RWMutex
+	globalTrans Translator = NoopTranslator{}
 )
 
 // SetGlobal installs t as the process-wide Translator consulted by the
