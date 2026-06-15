@@ -51,9 +51,9 @@ type SimpleAgentPool struct {
 
 	mu        sync.Mutex
 	cond      *sync.Cond
-	available []Agent       // ready to hand out
+	available []Agent            // ready to hand out
 	inUse     map[Agent]struct{} // currently held by callers
-	allAgents []Agent       // every Agent the pool has ever created or accepted (for Shutdown)
+	allAgents []Agent            // every Agent the pool has ever created or accepted (for Shutdown)
 	closed    bool
 }
 

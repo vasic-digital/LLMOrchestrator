@@ -380,10 +380,10 @@ func extractIssuesFromText(raw string) []agent.Issue {
 	lower := strings.ToLower(raw)
 
 	severityPatterns := map[string]string{
-		"critical":  "critical",
-		"high":      "high",
-		"medium":    "medium",
-		"low":       "low",
+		"critical": "critical",
+		"high":     "high",
+		"medium":   "medium",
+		"low":      "low",
 	}
 
 	issueTypePatterns := map[string]string{

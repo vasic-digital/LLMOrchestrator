@@ -23,14 +23,14 @@ const (
 
 // PipeMessage is the JSON-lines protocol message for stdin/stdout communication.
 type PipeMessage struct {
-	Type       MessageType       `json:"type"`
-	Content    string            `json:"content,omitempty"`
-	ImagePath  string            `json:"image_path,omitempty"`
-	Actions    []ActionPayload   `json:"actions,omitempty"`
-	Error      string            `json:"error,omitempty"`
-	Metadata   map[string]string `json:"metadata,omitempty"`
-	Timestamp  time.Time         `json:"timestamp"`
-	RequestID  string            `json:"request_id,omitempty"`
+	Type      MessageType       `json:"type"`
+	Content   string            `json:"content,omitempty"`
+	ImagePath string            `json:"image_path,omitempty"`
+	Actions   []ActionPayload   `json:"actions,omitempty"`
+	Error     string            `json:"error,omitempty"`
+	Metadata  map[string]string `json:"metadata,omitempty"`
+	Timestamp time.Time         `json:"timestamp"`
+	RequestID string            `json:"request_id,omitempty"`
 }
 
 // ActionPayload is the JSON representation of an action in a pipe message.

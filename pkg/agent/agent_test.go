@@ -89,10 +89,10 @@ func (m *mockAgent) SendWithAttachments(ctx context.Context, prompt string, atta
 	return Response{Content: "mock response with attachments"}, nil
 }
 
-func (m *mockAgent) OutputDir() string              { return m.outputDir }
+func (m *mockAgent) OutputDir() string               { return m.outputDir }
 func (m *mockAgent) Capabilities() AgentCapabilities { return m.caps }
 func (m *mockAgent) SupportsVision() bool            { return m.caps.Vision }
-func (m *mockAgent) ModelInfo() ModelInfo             { return m.info }
+func (m *mockAgent) ModelInfo() ModelInfo            { return m.info }
 
 // --- Unit Tests ---
 

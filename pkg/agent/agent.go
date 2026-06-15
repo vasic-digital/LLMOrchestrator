@@ -109,8 +109,8 @@ type ParsedResponse struct {
 
 // Issue represents a problem detected by an agent.
 type Issue struct {
-	Type        string   // "visual", "ux", "accessibility", "functional", "performance", "crash"
-	Severity    string   // "critical", "high", "medium", "low"
+	Type        string // "visual", "ux", "accessibility", "functional", "performance", "crash"
+	Severity    string // "critical", "high", "medium", "low"
 	Title       string
 	Description string
 	ScreenID    string

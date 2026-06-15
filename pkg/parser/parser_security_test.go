@@ -119,8 +119,8 @@ func TestParser_Security_UnicodeExploits(t *testing.T) {
 	p := NewParser()
 	tests := []string{
 		"Click the \u202e\u0065\u0074\u0061\u006c\u0065\u0064 button", // RTL override
-		"Navigate to \ufeff settings",                                   // BOM
-		"Type \u0000\u0000 in the field",                                // null chars
+		"Navigate to \ufeff settings",                                 // BOM
+		"Type \u0000\u0000 in the field",                              // null chars
 	}
 
 	for i, raw := range tests {
