@@ -3,15 +3,9 @@
 # for LLMOrchestrator per CONST-035 + CONST-050(B). Cascade per CONST-051(A).
 
 set -uo pipefail
-<<<<<<< HEAD
 HEALTH_URL="${LLMORCHESTRATOR_HEALTH_URL:-}"
 CHAOS_HOST="${LLMORCHESTRATOR_CHAOS_HOST:-localhost}"
 CHAOS_PORT="${LLMORCHESTRATOR_CHAOS_PORT:-}"
-=======
-HEALTH_URL="${LLMORCHESTRATOR_VD_HEALTH_URL:-}"
-CHAOS_HOST="${LLMORCHESTRATOR_VD_CHAOS_HOST:-localhost}"
-CHAOS_PORT="${LLMORCHESTRATOR_VD_CHAOS_PORT:-}"
->>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
 LEGIT_REQS="${CHAOS_LEGIT_REQUESTS:-100}"
 MIN_PCT="${CHAOS_LEGIT_MIN_PASS_PCT:-95}"
 
@@ -19,11 +13,7 @@ echo "=== LLMOrchestrator Chaos Failure-Injection Challenge ==="
 echo "  url=$HEALTH_URL host=${CHAOS_HOST}:${CHAOS_PORT}"
 
 if [[ -z "$HEALTH_URL" ]] || [[ -z "$CHAOS_PORT" ]]; then
-<<<<<<< HEAD
     echo "[1/6] SKIP: LLMORCHESTRATOR_HEALTH_URL/_PORT unset — SKIP-OK: #env-no-target"
-=======
-    echo "[1/6] SKIP: LLMORCHESTRATOR_VD_HEALTH_URL/_PORT unset — SKIP-OK: #env-no-target"
->>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
     echo "=== LLMOrchestrator Chaos Challenge: PASSED (SKIP-OK) ==="
     exit 0
 fi

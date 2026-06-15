@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # LLMOrchestrator round-275 challenge fixture — German (de).
 locale: de
 prompt_json: '{"actions":[{"type":"back","target":"vorherige_ansicht","confidence":0.77}]}'
@@ -6,12 +5,3 @@ expect_action_type: back
 expect_action_target: vorherige_ansicht
 expect_pipe_content: "zurück zur vorherigen Ansicht"
 expect_message_id: llmorch_intent_back_previous
-=======
-# LLMOrchestrator round-291 anti-bluff fixture — locale: de
-locale: de
-prompt_json: '{"actions":[{"type":"click","target":"einstellungen_button","confidence":0.95}]}'
-expect_action_type: click
-expect_action_target: einstellungen_button
-expect_pipe_content: round-291 de pipe payload
-expect_inbox_id: round-291-de
->>>>>>> 4350384757760aabcf8df00be609fff98e9f1805

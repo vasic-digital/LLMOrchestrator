@@ -1,55 +1,26 @@
-<<<<<<< HEAD
-# LLMOrchestrator .gitignore — round-275 CONST-053 enrichment.
+# LLMOrchestrator .gitignore — CONST-053 compliant (round-275 + round-291 union).
 #
 # Forbidden-from-version-control classes per constitution submodule
-# §11.4.30. A `.gitignore` line alone is insufficient — no file
+# §11.4.30 / CONST-053. A `.gitignore` line alone is insufficient — no file
 # matching these patterns may be CURRENTLY TRACKED.
 
-# === 1. Build artefacts ===
+# === 1. Build artefacts (CONST-053 §1) ===
 /bin/
 /build/
 /dist/
 /out/
 target/
-=======
-# LLMOrchestrator .gitignore — CONST-053 compliant
-# Anti-bluff invariant: a .gitignore line is not enough; no file
-# matching the patterns below may be currently tracked.
-
-# Build artefacts (CONST-053 §1)
->>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
 *.exe
 *.dll
 *.so
 *.dylib
 *.a
 *.o
-<<<<<<< HEAD
 *.class
 *.pyc
 /orchestrator
-cmd/orchestrator/orchestrator
-
-# === 2. Cache files ===
-__pycache__/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-node_modules/
-.next/
-.cache/
-.gradle/
-.terraform/
-
-# === 3. Temp files ===
-=======
-/bin/
-/build/
-/dist/
-/out/
-/orchestrator
 /runner
-target/
+cmd/orchestrator/orchestrator
 
 # Test artefacts
 *.test
@@ -59,19 +30,19 @@ cover.out
 *.prof
 profile.out
 
-# Cache files (CONST-053 §2)
+# === 2. Cache files (CONST-053 §2) ===
 __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 node_modules/
+.next/
 .cache/
 .gradle/
 .terraform/
 .gopls-cache/
 
-# Temp files (CONST-053 §3)
->>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
+# === 3. Temp files (CONST-053 §3) ===
 *.tmp
 *.swp
 *.swo
@@ -80,19 +51,11 @@ node_modules/
 *~
 .DS_Store
 Thumbs.db
-*.orig
-*.rej
 
-<<<<<<< HEAD
-# === 4. Sensitive-data files (CONST-042 + CONST-053) ===
+# === 4. Sensitive-data files (CONST-042 + CONST-053 §4) ===
 .env
 .env.*
 *.env
-=======
-# Sensitive-data files (CONST-053 §4 + CONST-042 secret-leak)
-.env
-.env.*
->>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
 !.env.example
 *.pem
 *.key
@@ -103,32 +66,17 @@ id_ed25519*
 secrets/
 api_keys.sh
 
-<<<<<<< HEAD
-# === 5. Generated reports / logs ===
+# === 5. Generated reports / logs (CONST-053 §5) ===
 *.log
-coverage.out
-coverage.html
 htmlcov/
-*.test
 reports/demos/
 reports/runtime/
 
-# === 6. OS / IDE personal state ===
+# === 6. OS / IDE personal state (CONST-053 §6) ===
 .idea/
 .history/
 .vscode/
 *.iml
-=======
-# Generated reports / logs (CONST-053 §5)
-*.log
-htmlcov/
-reports/demos/
-
-# OS / IDE personal state (CONST-053 §6)
-.idea/
-.history/
-.vscode/
 
 # Runner-emitted temp dirs (round-291 — os.MkdirTemp prefix)
 llmorch-round*-*
->>>>>>> 4350384757760aabcf8df00be609fff98e9f1805

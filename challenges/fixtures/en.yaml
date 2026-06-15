@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # LLMOrchestrator round-275 challenge fixture — English (en).
 #
 # Drives the Challenge runner at challenges/runner/main.go through a
@@ -12,16 +11,3 @@ expect_action_type: click
 expect_action_target: login
 expect_pipe_content: "tap the login button"
 expect_message_id: llmorch_intent_click_login
-=======
-# LLMOrchestrator round-291 anti-bluff fixture — locale: en
-# Each fixture pins a real ResponseParser action extraction, a real
-# PipeMessage round-trip Content, and a real FileTransport inbox ID.
-# All three values are compared verbatim by challenges/runner/main.go
-# — drift in any field fails the gate.
-locale: en
-prompt_json: '{"actions":[{"type":"click","target":"login_button","confidence":0.92}]}'
-expect_action_type: click
-expect_action_target: login_button
-expect_pipe_content: round-291 en pipe payload
-expect_inbox_id: round-291-en
->>>>>>> 4350384757760aabcf8df00be609fff98e9f1805

@@ -3,11 +3,7 @@
 # LLMOrchestrator per CONST-035 + CONST-050(B). Cascade per CONST-051(A).
 
 set -uo pipefail
-<<<<<<< HEAD
 BIN_PATH="${LLMORCHESTRATOR_BIN:-}"
-=======
-BIN_PATH="${LLMORCHESTRATOR_VD_BIN:-}"
->>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
 TIMEOUT_SEC="${UI_TIMEOUT_SEC:-30}"
 USER_HOSTILE=('panic:' 'goroutine [0-9]+ \[running\]:' 'runtime error:' 'segmentation fault' 'fatal error:')
 
@@ -15,11 +11,7 @@ echo "=== LLMOrchestrator UI Terminal-Interaction Challenge ==="
 echo "  bin=$BIN_PATH timeout=${TIMEOUT_SEC}s"
 
 if [[ -z "$BIN_PATH" ]] || [[ ! -x "$BIN_PATH" ]]; then
-<<<<<<< HEAD
     echo "[1/4] SKIP: LLMORCHESTRATOR_BIN not set — SKIP-OK: #env-binary-missing"
-=======
-    echo "[1/4] SKIP: LLMORCHESTRATOR_VD_BIN not set — SKIP-OK: #env-binary-missing"
->>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
     echo "=== LLMOrchestrator UI Challenge: PASSED (SKIP-OK) ==="
     exit 0
 fi

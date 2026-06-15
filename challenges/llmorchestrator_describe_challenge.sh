@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
-<<<<<<< HEAD
 # llmorchestrator_describe_challenge.sh — round-275 anti-bluff
-=======
-# llmorchestrator_describe_challenge.sh — round-291 anti-bluff
->>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
 # wrapper around the in-process Challenge runner
 # (challenges/runner/main.go).
 #
@@ -24,17 +20,7 @@
 # CONST-049 §11.4.17):
 #   "all existing tests and Challenges do work in anti-bluff
 #    manner - they MUST confirm that all tested codebase really
-<<<<<<< HEAD
 #    works as expected! ..."
-=======
-#    works as expected! We had been in position that all tests
-#    do execute with success and all Challenges as well, but
-#    in reality the most of the features does not work and
-#    can't be used! This MUST NOT be the case and execution
-#    of tests and Challenges MUST guarantee the quality, the
-#    completition and full usability by end users of the
-#    product!"
->>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
 
 set -uo pipefail
 
@@ -42,11 +28,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODULE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 MODE="${1:-normal}"
-<<<<<<< HEAD
 echo "=== LLMOrchestrator Describe Challenge (round-275) ==="
-=======
-echo "=== LLMOrchestrator Describe Challenge (round-291, vasic-digital) ==="
->>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
 echo "  mode=${MODE}"
 echo "  module=${MODULE_DIR}"
 
@@ -63,11 +45,7 @@ case "${MODE}" in
         unset LLMORCH_MUTATE_RUNNER
         out="$(go run ./challenges/runner/ 2>&1)"
         rc=$?
-<<<<<<< HEAD
         echo "${out}" | tail -35
-=======
-        echo "${out}" | tail -40
->>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
         if [[ "${rc}" -ne 0 ]]; then
             echo "=== Describe Challenge: FAILED (runner rc=${rc}) ==="
             exit 1
