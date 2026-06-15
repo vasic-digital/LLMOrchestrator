@@ -1,140 +1,82 @@
-<<<<<<< HEAD
-# CONST-046 active bundle — English source-of-truth message strings
-# for digital.vasic.llmorchestrator user-facing call sites.
-#
-# Each entry's "other" value is the EXACT original English literal
-# that previously lived as a hardcoded format string inside the
-# referenced call site. Consumers of the LLMOrchestrator submodule
-# load this bundle (or a locale-specific override) into their
-# Translator implementation; the package-level translator (set via
-# i18n.SetPkgTranslator) then renders these IDs at runtime with the
-# templateData supplied by the call site.
-#
-# Format-string convention: arguments are referenced by name via
-# {{.fieldname}} (Go text/template syntax). Original positional
-# %s / %d order is preserved in the bundle-key naming as documentation.
-#
-# Round 115 — first 5 entries (1 per builder agent invocationError.Error()).
-# Round 204 — second batch of 10 entries: the remaining two branches
-# (exit-code-only + wrapped-error) per builder agent invocationError.Error(),
-# closing the per-builder Error() i18n surface (5 builders × 3 branches =
-# 15 total = 5 from round-115 + 10 from round-204).
-
-llmorchestrator_agent_opencode_invocation_failed_with_stderr:
-  other: "{{.sentinel}}: {{.op}} exit {{.exitCode}}: {{.stderr}}"
-
-llmorchestrator_agent_claudecode_invocation_failed_with_stderr:
-  other: "{{.sentinel}}: {{.op}} exit {{.exitCode}}: {{.stderr}}"
-
-llmorchestrator_agent_gemini_invocation_failed_with_stderr:
-  other: "{{.sentinel}}: {{.op}} exit {{.exitCode}}: {{.stderr}}"
-
-llmorchestrator_agent_junie_invocation_failed_with_stderr:
-  other: "{{.sentinel}}: {{.op}} exit {{.exitCode}}: {{.stderr}}"
-
-llmorchestrator_agent_qwencode_invocation_failed_with_stderr:
-  other: "{{.sentinel}}: {{.op}} exit {{.exitCode}}: {{.stderr}}"
-
-# Round 204 — exit-code-only branch (no stderr captured).
-
-llmorchestrator_agent_opencode_invocation_failed_exit_code_only:
-  other: "{{.sentinel}}: {{.op}} exit {{.exitCode}}"
-
-llmorchestrator_agent_claudecode_invocation_failed_exit_code_only:
-  other: "{{.sentinel}}: {{.op}} exit {{.exitCode}}"
-
-llmorchestrator_agent_gemini_invocation_failed_exit_code_only:
-  other: "{{.sentinel}}: {{.op}} exit {{.exitCode}}"
-
-llmorchestrator_agent_junie_invocation_failed_exit_code_only:
-  other: "{{.sentinel}}: {{.op}} exit {{.exitCode}}"
-
-llmorchestrator_agent_qwencode_invocation_failed_exit_code_only:
-  other: "{{.sentinel}}: {{.op}} exit {{.exitCode}}"
-
-# Round 204 — wrapped-error branch (non-exit failure; e.g. context cancel).
-
-llmorchestrator_agent_opencode_invocation_failed_wrapped:
-  other: "{{.sentinel}}: {{.op}}: {{.wrapped}}"
-
-llmorchestrator_agent_claudecode_invocation_failed_wrapped:
-  other: "{{.sentinel}}: {{.op}}: {{.wrapped}}"
-
-llmorchestrator_agent_gemini_invocation_failed_wrapped:
-  other: "{{.sentinel}}: {{.op}}: {{.wrapped}}"
-
-llmorchestrator_agent_junie_invocation_failed_wrapped:
-  other: "{{.sentinel}}: {{.op}}: {{.wrapped}}"
-
-llmorchestrator_agent_qwencode_invocation_failed_wrapped:
-  other: "{{.sentinel}}: {{.op}}: {{.wrapped}}"
-
-# Round 387 — standalone orchestrator CLI (cmd/orchestrator/main.go)
-# user-facing console output: version banner, config-load errors,
-# agent-registration progress, ready banner, shutdown messages.
-# Each "other" value is the EXACT original English literal that
-# previously lived as a hardcoded format string at the referenced
-# call site. 14 entries closing the CLI's user-facing surface.
-
-llmorchestrator_cli_version_banner:
-  other: "LLMOrchestrator v{{.version}}\n"
-
-llmorchestrator_cli_config_load_error:
-  other: "Error loading config: {{.error}}\n"
-
-llmorchestrator_cli_config_invalid:
-  other: "Invalid config: {{.error}}\n"
-
-llmorchestrator_cli_agent_skipped:
-  other: "Warning: skipping agent {{.agent}}: {{.error}}\n"
-
-llmorchestrator_cli_agent_unknown:
-  other: "Unknown agent: {{.agent}}\n"
-
-llmorchestrator_cli_agent_register_error:
-  other: "Error registering agent {{.agent}}: {{.error}}\n"
-
-llmorchestrator_cli_agent_registered:
-  other: "Registered agent: {{.name}} ({{.id}})\n"
-
-llmorchestrator_cli_ready_banner:
-  other: "LLMOrchestrator v{{.version}} ready with {{.count}} agents\n"
-
-llmorchestrator_cli_shutting_down:
-  other: "\nShutting down..."
-
-llmorchestrator_cli_shutdown_error:
-  other: "Shutdown error: {{.error}}\n"
-
-llmorchestrator_cli_shutdown_complete:
-  other: "Shutdown complete."
-=======
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 Vasic Digital. All rights reserved.
 #
-# LLMOrchestrator English locale bundle (CONST-046 round-383).
-# Placeholders use {brace} syntax resolved by BundleTranslator.
-# Additional locales: copy this file to active.<lang>.yaml and
-# translate the values; keys MUST stay identical.
+# CONST-046 active bundle — English source-of-truth message strings
+# for digital.vasic.llmorchestrator user-facing call sites.
+#
+# Schema: flat "messageID: value" mapping (yaml.Unmarshal into
+# map[string]string by pkg/i18n/bundle.go). The nested "id:\n  other: ..."
+# form is NOT supported by the loader (unmarshals into a map, not a string).
+#
+# Placeholders use {brace} syntax resolved by BundleTranslator.interpolate.
+# The brace name MUST match the flat templateData key the call site passes
+# (e.g. map[string]any{"version": v} <-> {version}). Go text/template
+# "{{.field}}" syntax is NOT supported and would ship literally to the user.
+#
+# Additional locales: copy this file to active.<lang>.yaml and translate the
+# values; keys MUST stay identical.
+#
+# Merge-conflict resolution (committed-corruption fix, 2026-06-15): the two
+# committed conflict sides used incompatible key schemes (HEAD =
+# llmorchestrator_*; other = cli.* / config.*) AND incompatible placeholder
+# syntaxes ({{.field}} vs {field}) AND incompatible YAML shapes (nested
+# "other:" vs flat). Captured evidence determined the live consumers:
+#   * cmd/orchestrator/main.go references llmorchestrator_cli_*  (11 keys)
+#   * pkg/agent/*_agent.go      references llmorchestrator_agent_* (15 keys)
+#   * pkg/config/config.go      references config.*               (6 keys)
+#   * the other side's cli.* keys had ZERO live Go consumers (a dead rename).
+# Only the flat {brace} form substitutes at runtime (FACT-proven via the
+# BundleTranslator loader + interpolate). Resolution: keep every
+# live-referenced key, in flat {brace} form (HEAD's {{.field}} converted to
+# {field}); drop the dead cli.* block. No translation referenced by a live
+# consumer is lost.
 
-# --- CLI lifecycle (cmd/orchestrator) ---------------------------------
-cli.version_line: "LLMOrchestrator v{version}"
-cli.error_loading_config: "Error loading config: {error}"
-cli.error_invalid_config: "Invalid config: {error}"
-cli.warning_skipping_agent: "Warning: skipping agent {agent}: {error}"
-cli.error_unknown_agent: "Unknown agent: {agent}"
-cli.error_registering_agent: "Error registering agent {agent}: {error}"
-cli.registered_agent: "Registered agent: {name} ({id})"
-cli.ready: "LLMOrchestrator v{version} ready with {count} agents"
-cli.shutting_down: "Shutting down..."
-cli.error_shutdown: "Shutdown error: {error}"
-cli.shutdown_complete: "Shutdown complete."
+# --- Standalone orchestrator CLI (cmd/orchestrator/main.go) -------------
+# Field names match the flat templateData keys main.go passes
+# (version / error / agent / name / id / count).
+llmorchestrator_cli_version_banner: "LLMOrchestrator v{version}\n"
+llmorchestrator_cli_config_load_error: "Error loading config: {error}\n"
+llmorchestrator_cli_config_invalid: "Invalid config: {error}\n"
+llmorchestrator_cli_agent_skipped: "Warning: skipping agent {agent}: {error}\n"
+llmorchestrator_cli_agent_unknown: "Unknown agent: {agent}\n"
+llmorchestrator_cli_agent_register_error: "Error registering agent {agent}: {error}\n"
+llmorchestrator_cli_agent_registered: "Registered agent: {name} ({id})\n"
+llmorchestrator_cli_ready_banner: "LLMOrchestrator v{version} ready with {count} agents\n"
+llmorchestrator_cli_shutting_down: "\nShutting down..."
+llmorchestrator_cli_shutdown_error: "Shutdown error: {error}\n"
+llmorchestrator_cli_shutdown_complete: "Shutdown complete."
 
-# --- Configuration validation (pkg/config) ----------------------------
+# --- Per-builder agent invocationError.Error() (pkg/agent/*_agent.go) ---
+# Three branches per builder. Field names match the flat templateData keys
+# the agent call sites pass (sentinel / op / exitCode / stderr / wrapped).
+
+# with-stderr branch
+llmorchestrator_agent_opencode_invocation_failed_with_stderr: "{sentinel}: {op} exit {exitCode}: {stderr}"
+llmorchestrator_agent_claudecode_invocation_failed_with_stderr: "{sentinel}: {op} exit {exitCode}: {stderr}"
+llmorchestrator_agent_gemini_invocation_failed_with_stderr: "{sentinel}: {op} exit {exitCode}: {stderr}"
+llmorchestrator_agent_junie_invocation_failed_with_stderr: "{sentinel}: {op} exit {exitCode}: {stderr}"
+llmorchestrator_agent_qwencode_invocation_failed_with_stderr: "{sentinel}: {op} exit {exitCode}: {stderr}"
+
+# exit-code-only branch (no stderr captured)
+llmorchestrator_agent_opencode_invocation_failed_exit_code_only: "{sentinel}: {op} exit {exitCode}"
+llmorchestrator_agent_claudecode_invocation_failed_exit_code_only: "{sentinel}: {op} exit {exitCode}"
+llmorchestrator_agent_gemini_invocation_failed_exit_code_only: "{sentinel}: {op} exit {exitCode}"
+llmorchestrator_agent_junie_invocation_failed_exit_code_only: "{sentinel}: {op} exit {exitCode}"
+llmorchestrator_agent_qwencode_invocation_failed_exit_code_only: "{sentinel}: {op} exit {exitCode}"
+
+# wrapped-error branch (non-exit failure; e.g. context cancel)
+llmorchestrator_agent_opencode_invocation_failed_wrapped: "{sentinel}: {op}: {wrapped}"
+llmorchestrator_agent_claudecode_invocation_failed_wrapped: "{sentinel}: {op}: {wrapped}"
+llmorchestrator_agent_gemini_invocation_failed_wrapped: "{sentinel}: {op}: {wrapped}"
+llmorchestrator_agent_junie_invocation_failed_wrapped: "{sentinel}: {op}: {wrapped}"
+llmorchestrator_agent_qwencode_invocation_failed_wrapped: "{sentinel}: {op}: {wrapped}"
+
+# --- Configuration validation (pkg/config/config.go) -------------------
+# config.no_path_for_agent passes {agent}; config.agent_binary_not_found
+# passes {path}; the rest are placeholder-free.
 config.no_path_for_agent: "no path configured for agent: {agent}"
 config.agent_binary_not_found: "agent binary not found: {path}"
 config.timeout_must_be_positive: "agent timeout must be positive"
 config.max_retries_non_negative: "max retries must be non-negative"
 config.pool_size_must_be_positive: "pool size must be positive"
 config.at_least_one_agent: "at least one agent must be enabled"
->>>>>>> 4350384757760aabcf8df00be609fff98e9f1805
