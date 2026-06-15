@@ -288,6 +288,18 @@ func (a *OpenCodeAgent) runCapture(ctx context.Context, args []string) ([]byte, 
 	cmd.Cancel = func() error {
 		return killProcessGroup(cmd)
 	}
+	// WaitDelay bounds how long cmd.Wait() (inside Output()) will block on
+	// stdout/stderr pipe drainage AFTER ctx-cancellation has fired and the
+	// process-group SIGKILL was sent. Without it (WaitDelay == 0) a
+	// grandchild that inherited the stdout pipe but escaped the group kill
+	// — or whose kill raced its own startup under host load — keeps the
+	// pipe open and Wait() blocks until that grandchild exits on its own
+	// (e.g. the full `sleep 30`). Per the os/exec docs this is the
+	// canonical fix for the "Cancel set but a descendant holds the pipe"
+	// hang: after the delay Go force-closes the inherited pipes and Wait()
+	// returns. Success-path behaviour is unchanged — the delay only ever
+	// applies after cancellation.
+	cmd.WaitDelay = 2 * time.Second
 	return cmd.Output()
 }
 
