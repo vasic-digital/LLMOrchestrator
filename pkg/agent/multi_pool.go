@@ -328,7 +328,7 @@ type PoolConfig struct {
 // which is the per-provider Err{Provider}ClientNotWired surface in
 // builders.go.
 //
-// Round-28 §11.4 audit (HelixCode close-out, 2026-05-17, original
+// Round-28 §11.4 audit (the project close-out, 2026-05-17, original
 // forensic anchor): the original factory bodies returned a MockPool
 // seeded with `nil` agent slots (`agents[i] = nil // Placeholder`).
 // MultiProviderPool.Acquire() would happily return one of those nil
