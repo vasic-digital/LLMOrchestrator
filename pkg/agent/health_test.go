@@ -404,4 +404,31 @@ func TestHealthMonitor_Stress_ConcurrentOperations(t *testing.T) {
 	}
 
 	wg.Wait()
+
+	// Observable post-join invariants (not just -race + no-panic). Every
+	// worker recorded ops against agent-A..agent-E (id%5), so after the
+	// concurrent storm the monitor MUST have registered exactly those 5
+	// distinct agents, each with a well-formed circuit state. This proves
+	// the concurrent GetBreaker lazy-init produced a consistent registry —
+	// no lost agent, no duplicate, no torn state.
+	statuses := hm.AllStatuses()
+	if len(statuses) != 5 {
+		t.Fatalf("expected exactly 5 monitored agents after concurrent storm, got %d (%v)", len(statuses), statuses)
+	}
+	for _, want := range []string{"agent-A", "agent-B", "agent-C", "agent-D", "agent-E"} {
+		state, ok := statuses[want]
+		if !ok {
+			t.Errorf("agent %q must be registered after recording ops against it", want)
+			continue
+		}
+		if state != CircuitClosed && state != CircuitOpen && state != CircuitHalfOpen {
+			t.Errorf("agent %q has invalid circuit state %v after concurrent ops", want, state)
+		}
+	}
+
+	// IsHealthy must return a consistent, callable result per registered
+	// agent (no panic, no deadlock) — observable read-back after the storm.
+	for _, want := range []string{"agent-A", "agent-B", "agent-C", "agent-D", "agent-E"} {
+		_ = hm.IsHealthy(want)
+	}
 }
