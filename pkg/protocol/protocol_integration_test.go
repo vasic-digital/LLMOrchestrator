@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -199,14 +200,35 @@ func TestIntegration_FileTransport_SessionLifecycle(t *testing.T) {
 		t.Fatalf("NewFileTransport failed: %v", err)
 	}
 
-	// Use.
-	_ = ft.WriteToInbox(FileMessage{ID: "msg-1", Type: "instruction"})
-	_ = ft.WriteSharedFile("test.txt", []byte("data"))
+	// Use: writes MUST succeed (not silently discarded).
+	if err := ft.WriteToInbox(FileMessage{ID: "msg-1", Type: "instruction"}); err != nil {
+		t.Fatalf("WriteToInbox failed: %v", err)
+	}
+	if err := ft.WriteSharedFile("test.txt", []byte("data")); err != nil {
+		t.Fatalf("WriteSharedFile failed: %v", err)
+	}
+
+	// Observable: the written artifacts actually exist on disk.
+	inboxMsg := filepath.Join(sessionDir, "inbox", "msg-1.json")
+	if _, err := os.Stat(inboxMsg); err != nil {
+		t.Errorf("inbox message not written to disk at %s: %v", inboxMsg, err)
+	}
+	sharedFile := filepath.Join(sessionDir, "shared", "test.txt")
+	if data, err := os.ReadFile(sharedFile); err != nil {
+		t.Errorf("shared file not written to disk at %s: %v", sharedFile, err)
+	} else if string(data) != "data" {
+		t.Errorf("shared file content = %q, want %q", string(data), "data")
+	}
 
 	// Cleanup.
 	err = ft.Cleanup()
 	if err != nil {
 		t.Fatalf("Cleanup failed: %v", err)
+	}
+
+	// Observable: the entire session directory is gone after Cleanup.
+	if _, err := os.Stat(sessionDir); !os.IsNotExist(err) {
+		t.Errorf("session dir %s should not exist after Cleanup, stat err = %v", sessionDir, err)
 	}
 }
 

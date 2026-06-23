@@ -5,6 +5,7 @@ package adapter
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -160,12 +161,35 @@ func TestIntegration_PoolHealthCheck(t *testing.T) {
 func TestIntegration_PoolShutdown(t *testing.T) {
 	pool := agent.NewPool()
 
-	_ = pool.Register(NewOpenCodeAgent("oc-1", AdapterConfig{BinaryPath: "/bin/cat", Timeout: 2 * time.Second}))
+	registered := NewOpenCodeAgent("oc-1", AdapterConfig{BinaryPath: "/bin/cat", Timeout: 2 * time.Second})
+	if err := pool.Register(registered); err != nil {
+		t.Fatalf("Register failed: %v", err)
+	}
+
+	// Observable pre-condition: the registered agent is available before shutdown.
+	if before := pool.Available(); len(before) != 1 {
+		t.Fatalf("expected 1 available agent before shutdown, got %d", len(before))
+	}
 
 	ctx := context.Background()
 	err := pool.Shutdown(ctx)
 	if err != nil {
 		t.Fatalf("Shutdown failed: %v", err)
+	}
+
+	// Observable post-condition 1: Shutdown is idempotent (second call still nil).
+	if err := pool.Shutdown(ctx); err != nil {
+		t.Errorf("second Shutdown should be idempotent, got error: %v", err)
+	}
+
+	// Observable post-condition 2: Register on a shut-down pool is rejected.
+	if err := pool.Register(NewOpenCodeAgent("oc-2", AdapterConfig{})); !errors.Is(err, agent.ErrPoolShutdown) {
+		t.Errorf("Register after shutdown: expected ErrPoolShutdown, got %v", err)
+	}
+
+	// Observable post-condition 3: Acquire on a shut-down pool is rejected.
+	if _, err := pool.Acquire(ctx, agent.AgentRequirements{}); !errors.Is(err, agent.ErrPoolShutdown) {
+		t.Errorf("Acquire after shutdown: expected ErrPoolShutdown, got %v", err)
 	}
 }
 

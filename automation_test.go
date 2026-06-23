@@ -49,6 +49,7 @@ func TestAutomation_GoModExists(t *testing.T) {
 }
 
 func TestAutomation_GoVet(t *testing.T) {
+	// bluff-scan: nil-only-ok (go vet/go build subprocess success IS the observable assertion)
 	root := findProjectRoot(t)
 	cmd := exec.Command("go", "vet", "./...")
 	cmd.Dir = root
@@ -59,6 +60,7 @@ func TestAutomation_GoVet(t *testing.T) {
 }
 
 func TestAutomation_GoBuild(t *testing.T) {
+	// bluff-scan: nil-only-ok (go vet/go build subprocess success IS the observable assertion)
 	root := findProjectRoot(t)
 	cmd := exec.Command("go", "build", "./...")
 	cmd.Dir = root

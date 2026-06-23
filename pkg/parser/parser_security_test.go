@@ -4,6 +4,7 @@
 package parser
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -188,19 +189,38 @@ func TestParser_Security_HTMLInjection(t *testing.T) {
 
 func TestParser_Security_LargeNumberOfActions(t *testing.T) {
 	p := NewParser()
-	// Build a JSON with many actions.
+	// Build a JSON with many DISTINCT actions. Targets are unique so the
+	// parser's deduplication (keyed on type|target|value) keeps every one,
+	// letting us assert the parser actually parsed all 1000 rather than just
+	// not erroring.
+	const want = 1000
 	raw := `{"actions": [`
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < want; i++ {
 		if i > 0 {
 			raw += ","
 		}
-		raw += `{"type": "click", "target": "button"}`
+		raw += fmt.Sprintf(`{"type": "click", "target": "button-%d"}`, i)
 	}
 	raw += `]}`
 
 	// Should handle without hanging or excessive memory.
-	_, err := p.ExtractActions(raw)
+	actions, err := p.ExtractActions(raw)
 	if err != nil {
 		t.Fatalf("ExtractActions failed: %v", err)
+	}
+
+	// Observable: every distinct action was parsed back out.
+	if len(actions) != want {
+		t.Fatalf("expected %d parsed actions, got %d", want, len(actions))
+	}
+
+	// Observable: the parsed actions carry the real parsed content, not zero values.
+	for i, a := range actions {
+		if a.Type != "click" {
+			t.Fatalf("action %d: expected type %q, got %q", i, "click", a.Type)
+		}
+		if a.Target == "" {
+			t.Fatalf("action %d: expected non-empty target", i)
+		}
 	}
 }
