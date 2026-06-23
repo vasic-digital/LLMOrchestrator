@@ -5,6 +5,7 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -140,6 +141,7 @@ func TestPool_Stress_AcquireReleaseDifferentRequirements(t *testing.T) {
 		{}, // any agent
 	}
 
+	var acquired int64
 	for i := 0; i < 100; i++ {
 		wg.Add(1)
 		go func(idx int) {
@@ -152,12 +154,24 @@ func TestPool_Stress_AcquireReleaseDifferentRequirements(t *testing.T) {
 			if err != nil {
 				return
 			}
+			atomic.AddInt64(&acquired, 1)
 			time.Sleep(time.Microsecond * 100)
 			p.Release(a)
 		}(i)
 	}
 
 	wg.Wait()
+
+	// Observable post-concurrency invariants (beyond -race):
+	//  (1) the requirement-matched acquisitions actually happened; and
+	//  (2) every acquire was balanced by a release, so all three agents
+	//      are available again — a leaked acquisition would leave fewer.
+	if acquired == 0 {
+		t.Error("expected at least some requirement-matched acquisitions")
+	}
+	if got := len(p.Available()); got != 3 {
+		t.Errorf("expected all 3 agents available after balanced acquire/release, got %d", got)
+	}
 }
 
 func TestPool_Stress_ShutdownDuringAcquire(t *testing.T) {
@@ -185,7 +199,18 @@ func TestPool_Stress_ShutdownDuringAcquire(t *testing.T) {
 
 	// Shutdown while goroutines are waiting.
 	time.Sleep(50 * time.Millisecond)
-	_ = p.Shutdown(ctx)
+	if err := p.Shutdown(ctx); err != nil {
+		t.Fatalf("Shutdown returned error: %v", err)
+	}
 
 	wg.Wait()
+
+	// Observable post-shutdown invariant (beyond -race): once the pool is shut
+	// down, any further Acquire MUST be rejected with ErrPoolShutdown — the
+	// waiting goroutines were unblocked and the pool will not hand out agents.
+	ctx2, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if _, err := p.Acquire(ctx2, AgentRequirements{}); !errors.Is(err, ErrPoolShutdown) {
+		t.Errorf("Acquire after Shutdown: expected ErrPoolShutdown, got %v", err)
+	}
 }
