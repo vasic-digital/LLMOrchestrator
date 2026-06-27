@@ -593,6 +593,7 @@ func TestProviderPools_ValidConfig_ReturnRealPool_AcquireFailsWithBuilderSentine
 // provider constructor MUST now succeed when handed non-nil configs.
 // Three sub-cases prove the end-to-end Acquire path:
 //
+<<<<<<< Updated upstream
 //  1. RECONCILED per §11.4.120 (multi_pool_lazy_select_bug fix): the
 //     prior assertion here ("ZERO pre-registered agents ⇒ Acquire returns
 //     ErrNoSuitableAgent") encoded the lazy-build DEAD-PATH BUG as if it
@@ -608,6 +609,19 @@ func TestProviderPools_ValidConfig_ReturnRealPool_AcquireFailsWithBuilderSentine
 //     so we assert the selector contract — the layer the bug lived in —
 //     with a deterministic injected lazy pool rather than the host-bound
 //     real builders.)
+=======
+//  1. With ZERO agents pre-registered the RoundRobinSelector now
+//     SELECTS a lazy pool that has spare build capacity (capacity>0,
+//     no available agents) and MultiProviderPool.Acquire drives that
+//     pool's ClientBuilder. This documents the §11.4.120-reconciled
+//     selector contract: a freshly-built lazy SimpleAgentPool (the
+//     canonical NewMultiProviderPool shape) is selectable BEFORE any
+//     agent is materialised — the prior assertion ("ZERO agents ⇒
+//     ErrNoSuitableAgent") documented the pre-fix defect where Select
+//     ignored buildable-but-empty pools, defeating lazy-build for the
+//     multi-provider path. Fixed in RoundRobinSelector.Select (the
+//     spare-capacity fallback arm + poolHasSpareCapacity).
+>>>>>>> Stashed changes
 //
 //  2. Registering a real mockAgent into one of the underlying
 //     SimpleAgentPools makes round-robin pick that provider (via the
@@ -631,6 +645,7 @@ func TestNewMultiProviderPool_ValidConfig_BuildsRealPools(t *testing.T) {
 		t.Fatal("NewMultiProviderPool returned nil pool with nil error")
 	}
 
+<<<<<<< Updated upstream
 	t.Run("lazy_pool_with_build_capacity_is_selected", func(t *testing.T) {
 		// §11.4.120 reconciliation: a lazy SimpleAgentPool with spare build
 		// capacity and an EMPTY Available() set MUST be selected so its
@@ -649,6 +664,42 @@ func TestNewMultiProviderPool_ValidConfig_BuildsRealPools(t *testing.T) {
 		if provider != "opencode" {
 			t.Errorf("Select returned %q for a lazy capacity-bearing pool, want %q "+
 				"(build-capacity arm — lazy-build path must not be dead)", provider, "opencode")
+=======
+	t.Run("lazy_pool_with_capacity_is_selected_and_builder_driven", func(t *testing.T) {
+		// §11.4.120 reconciliation: this sub-case formerly asserted
+		// Acquire returns ErrNoSuitableAgent with zero registered agents.
+		// That documented the RoundRobinSelector.Select defect (it only
+		// selected pools whose Available() was already non-empty, so a
+		// lazy SimpleAgentPool with spare capacity was never picked and
+		// the whole lazy-build multi-provider path was dead). With the
+		// fix, Select picks a lazy pool with spare build capacity and
+		// MultiProviderPool.Acquire drives that pool's ClientBuilder.
+		//
+		// Isolate PATH to an empty dir so whichever provider's builder
+		// the selector drives fails with a REAL binary-not-found error
+		// (the round-76 wired sentinel) rather than depending on host
+		// binaries. The point under test: Acquire MUST NOT return
+		// ErrNoSuitableAgent (the pre-fix selector-skip signal) — it
+		// MUST reach a builder, proving a buildable pool was selected.
+		emptyDir := t.TempDir()
+		t.Setenv("PATH", emptyDir)
+
+		freshMP, ferr := NewMultiProviderPool(map[string]*PoolConfig{
+			"opencode": {Size: 1},
+		})
+		if ferr != nil {
+			t.Fatalf("NewMultiProviderPool: %v", ferr)
+		}
+		a, acqErr := freshMP.Acquire(context.Background(), AgentRequirements{})
+		if a != nil {
+			// A built agent is also acceptable proof a buildable pool was
+			// selected, but with PATH isolated the builder should fail.
+			t.Logf("Acquire built an agent (builder succeeded): %v", a)
+		}
+		if errors.Is(acqErr, ErrNoSuitableAgent) {
+			t.Errorf("Acquire err = ErrNoSuitableAgent — selector ignored a lazy pool with spare "+
+				"build capacity (the §11.4.120-reconciled defect would regress); err = %v", acqErr)
+>>>>>>> Stashed changes
 		}
 	})
 

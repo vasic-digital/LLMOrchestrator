@@ -8,67 +8,61 @@ import (
 	"testing"
 )
 
-// TestRoundRobinSelector_LazyPoolWithBuildCapacity_IsSelected is a
-// reproduce-first RED test (§11.4.115) for the lazy-build multi-provider
-// dead-path bug.
+// TestMultiProviderPool_Acquire_LazyPoolWithCapacityIsSelected is a
+// reproduce-first RED test (§11.4.43 / §11.4.115) for the lazy-build
+// selection defect in RoundRobinSelector.Select (multi_pool.go).
 //
-// FACT (pre-fix): RoundRobinSelector.Select only returns a provider whose
-// pool.Available() is already non-empty (the requirements-match loop AND
-// the fallback loop both gate on Available()). A freshly-built lazy
-// SimpleAgentPool — capacity > 0, working ClientBuilder, ZERO pre-registered
-// agents, exactly what NewMultiProviderPool produces — has an EMPTY
-// Available() set, so the selector NEVER picks it and MultiProviderPool.Acquire
-// returns ErrNoSuitableAgent. The lazy on-demand build path
-// (SimpleAgentPool.Acquire's "len(inUse)+len(available) < capacity → builder"
-// branch) is therefore DEAD on first use, even though it could build an agent.
+// Defect under test: RoundRobinSelector.Select only ever returns a
+// provider whose pool.Available() is already non-empty. Both the
+// primary requirement-matching loop AND the fallback loop iterate the
+// already-materialised available set; neither considers a pool that has
+// spare CAPACITY and a working lazy ClientBuilder but ZERO
+// pre-registered/available agents. Such a lazy SimpleAgentPool can
+// build an agent on demand (SimpleAgentPool.Acquire's build path), but
+// Select never picks it, so MultiProviderPool.Acquire returns
+// ErrNoSuitableAgent even though an agent could have been built. This
+// defeats the entire lazy-build design for the multi-provider path —
+// the canonical configuration produced by NewMultiProviderPool, where
+// every SimpleAgentPool starts EMPTY and builds on first Acquire.
 //
-// This test constructs a MultiProviderPool directly with ONE lazy
-// SimpleAgentPool whose builder returns a real (mock) Agent on demand, then
-// asserts Acquire SUCCEEDS and returns that built agent. It MUST FAIL on the
-// pre-fix code (Acquire returns ErrNoSuitableAgent, nil agent) and PASS once
-// Select also honours spare BUILD capacity.
-func TestRoundRobinSelector_LazyPoolWithBuildCapacity_IsSelected(t *testing.T) {
-	const wantID = "lazy-built-agent"
+// End-user impact: a correctly-configured MultiProviderPool (one or
+// more providers, each a real lazy SimpleAgentPool with capacity >= 1)
+// reports "no suitable agent available" on the very first Acquire,
+// before a single agent has ever been built. The pool is functionally
+// dead.
+//
+// This test constructs that exact configuration directly (no
+// pre-registered agents) and asserts Acquire succeeds and returns a
+// built agent. It FAILs on the pre-fix Select.
+func TestMultiProviderPool_Acquire_LazyPoolWithCapacityIsSelected(t *testing.T) {
+	// One lazy SimpleAgentPool, capacity 1, working builder, ZERO
+	// pre-registered agents — exactly what NewMultiProviderPool yields.
+	builder, calls := makeMockBuilder("opencode")
+	lazyPool := NewSimpleAgentPool("opencode", 1, builder)
 
-	built := 0
-	builder := func(ctx context.Context) (Agent, error) {
-		built++
-		return newMockAgent(wantID, "opencode"), nil
-	}
-
-	// A lazy pool: capacity 1, working builder, ZERO pre-registered agents.
-	// This is exactly the shape NewMultiProviderPool produces for a
-	// configured-but-not-yet-acquired provider.
-	lazy := NewSimpleAgentPool("opencode", 1, builder)
-
-	// Sanity: the pool genuinely has spare build capacity and an empty
-	// available set — the precondition that triggers the bug.
-	if got := len(lazy.Available()); got != 0 {
-		t.Fatalf("precondition: lazy pool Available() = %d, want 0", got)
-	}
-	if lazy.Size() <= lazy.InUse() {
-		t.Fatalf("precondition: lazy pool has no spare build capacity (Size=%d InUse=%d)",
-			lazy.Size(), lazy.InUse())
+	// Sanity: the lazy pool genuinely has no available agents yet but
+	// CAN build one — proves the defect is in Select, not the pool.
+	if got := len(lazyPool.Available()); got != 0 {
+		t.Fatalf("precondition: lazyPool.Available() = %d, want 0 (no pre-registered agents)", got)
 	}
 
 	mp := &MultiProviderPool{
-		pools:    map[string]AgentPool{"opencode": lazy},
+		pools:    map[string]AgentPool{"opencode": lazyPool},
 		selector: NewRoundRobinSelector(),
 	}
 
-	got, err := mp.Acquire(context.Background(), AgentRequirements{})
+	agent, err := mp.Acquire(context.Background(), AgentRequirements{})
 	if err != nil {
-		t.Fatalf("Acquire on lazy multi-provider pool returned error %v; "+
-			"want a built agent (lazy-build path is dead on first use)", err)
+		t.Fatalf("MultiProviderPool.Acquire on a lazy pool with capacity>0 returned error %v; "+
+			"want a built agent (RoundRobinSelector.Select ignored a selectable lazy pool)", err)
 	}
-	if got == nil {
-		t.Fatal("Acquire returned nil agent with nil error")
+	if agent == nil {
+		t.Fatal("MultiProviderPool.Acquire returned nil agent without error")
 	}
-	if got.ID() != wantID {
-		t.Fatalf("Acquire returned agent ID %q, want %q (builder not invoked through Acquire)",
-			got.ID(), wantID)
+	if got := agent.Name(); got != "opencode" {
+		t.Errorf("acquired agent.Name() = %q, want %q", got, "opencode")
 	}
-	if built == 0 {
-		t.Fatal("ClientBuilder was never invoked — lazy on-demand build path not reached")
+	if got := calls.Load(); got != 1 {
+		t.Errorf("builder call count = %d, want 1 (the agent should have been lazily built)", got)
 	}
 }

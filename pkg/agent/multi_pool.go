@@ -215,6 +215,7 @@ func (r *RoundRobinSelector) Select(pools map[string]AgentPool, req AgentRequire
 		}
 	}
 
+<<<<<<< Updated upstream
 	// Try to find a provider that can serve the request in round-robin
 	// order. A provider qualifies if EITHER it has an available agent that
 	// meets requirements, OR it has spare build capacity to materialise a
@@ -226,10 +227,25 @@ func (r *RoundRobinSelector) Select(pools map[string]AgentPool, req AgentRequire
 		idx := (r.counter + i) % len(r.providers)
 		provider := r.providers[idx]
 
+=======
+	// Fallback: return the first provider that can serve the request —
+	// either it has an available agent right now, OR it is a lazy pool
+	// with spare build capacity (it will materialise an agent on
+	// Acquire). Iterating in round-robin order so this fallback stays
+	// fair too. Without the capacity arm, a freshly-built lazy
+	// SimpleAgentPool (capacity > 0, zero pre-registered agents — the
+	// canonical NewMultiProviderPool shape) is NEVER selected and
+	// MultiProviderPool.Acquire returns ErrNoSuitableAgent even though
+	// an agent could have been built on demand.
+	for i := 0; i < len(r.providers); i++ {
+		idx := (r.counter + i) % len(r.providers)
+		provider := r.providers[idx]
+>>>>>>> Stashed changes
 		pool, ok := pools[provider]
 		if !ok {
 			continue
 		}
+<<<<<<< Updated upstream
 
 		// Check if this provider has available agents that meet requirements.
 		for _, agent := range pool.Available() {
@@ -253,10 +269,37 @@ func (r *RoundRobinSelector) Select(pools map[string]AgentPool, req AgentRequire
 			if len(pool.Available()) > 0 || hasSpareBuildCapacity(pool) {
 				return provider
 			}
+=======
+		if len(pool.Available()) > 0 || poolHasSpareCapacity(pool) {
+			r.counter = (r.counter + 1) % len(r.providers)
+			return provider
+>>>>>>> Stashed changes
 		}
 	}
 
 	return ""
+}
+
+// capacityReporter is the optional capability a pool may expose so the
+// selector can tell a lazy-but-buildable pool (spare capacity, zero
+// available agents) apart from a genuinely-exhausted one.
+// *SimpleAgentPool satisfies it via Size() + InUse(). Pools that do not
+// implement it (e.g. the test mockPool, the map-based pool.go pool) are
+// treated as "no reported spare capacity", preserving prior behaviour.
+type capacityReporter interface {
+	Size() int
+	InUse() int
+}
+
+// poolHasSpareCapacity reports whether pool can materialise a new agent
+// on demand: it exposes capacity accounting AND its in-use count is
+// below its capacity. Pools without capacity accounting return false.
+func poolHasSpareCapacity(pool AgentPool) bool {
+	cr, ok := pool.(capacityReporter)
+	if !ok {
+		return false
+	}
+	return cr.InUse() < cr.Size()
 }
 
 func meetsRequirements(agent Agent, req AgentRequirements) bool {
