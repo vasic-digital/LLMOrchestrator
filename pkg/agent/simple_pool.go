@@ -186,6 +186,24 @@ func (p *SimpleAgentPool) Acquire(ctx context.Context, req AgentRequirements) (A
 				return nil, ErrSimpleAgentPoolClosed
 			}
 			p.allAgents = append(p.allAgents, a)
+			// LO-2: the BUILD path must honour the SAME capability contract the
+			// AVAILABLE path already enforces via takeAvailableLocked →
+			// meetsAgentRequirements. Without this, a freshly-built agent that
+			// does NOT meet req (e.g. Capabilities().MaxTokens < req.MinTokens)
+			// was handed out silently — a capability-contract violation
+			// (§11.4.108): the caller asked for MinTokens=500000 and received a
+			// 128k agent + nil err.
+			if !meetsAgentRequirements(a, req) {
+				// Park the built agent as available so a later Acquire with
+				// compatible requirements can reuse it — accounting stays exact
+				// (p.building was already decremented above; the agent now
+				// occupies its capacity slot as an available entry) — wake a
+				// waiter, and return the typed no-suitable-agent error rather
+				// than a requirement-violating agent.
+				p.available = append(p.available, a)
+				p.cond.Broadcast()
+				return nil, ErrNoSuitableAgent
+			}
 			p.inUse[a] = struct{}{}
 			return a, nil
 		}
