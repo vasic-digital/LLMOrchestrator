@@ -41,14 +41,22 @@ func TestMultiProviderPool_Release_DoesNotCrossContaminatePools(t *testing.T) {
 		t.Fatalf("gemini pool type = %T, want *SimpleAgentPool", mp.pools["gemini"])
 	}
 
-	// Seed only the opencode pool so the round-robin selector deterministically
-	// picks opencode (gemini has nothing available).
+	// Seed only the opencode pool with a mock agent. NOTE: the round-robin
+	// selector still CONSIDERS the gemini pool because it reports spare BUILD
+	// capacity (Size=1, InUse=0) even with nothing Available — so an unpinned
+	// Acquire non-deterministically tried to build a REAL gemini agent and
+	// failed ("binary not found on PATH") on hosts without the Gemini CLI
+	// (observed flaky 16/20). Pin PreferredAgent so the selector's preference
+	// pass deterministically matches the only Available agent (opencode) and
+	// never touches the gemini builder — the cross-pool contamination assertion
+	// below is what this test actually validates (§11.4.98 re-runnable /
+	// §11.4.50 deterministic).
 	want := newMockAgent("opencode-owned", "opencode")
 	if err := opencodeSP.Register(want); err != nil {
 		t.Fatalf("Register: %v", err)
 	}
 
-	got, err := mp.Acquire(context.Background(), AgentRequirements{})
+	got, err := mp.Acquire(context.Background(), AgentRequirements{PreferredAgent: "opencode"})
 	if err != nil {
 		t.Fatalf("Acquire: %v", err)
 	}
